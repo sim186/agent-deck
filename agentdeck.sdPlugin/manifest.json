@@ -1,0 +1,134 @@
+{
+  "Name": "Agent Deck",
+  "Description": "Drive coding agents (Claude, Codex, OpenCode, Pi) through herdr",
+  "Author": "Simone",
+  "Version": "0.2.0",
+  "PluginUUID": "com.simone.agentdeck",
+  "CodePathMac": "bin/agentdeck",
+  "CodePathLin": "bin/agentdeck",
+  "CodePathWin": "bin/main.js",
+  "CodePaths": {
+    "aarch64-apple-darwin": "bin/agentdeck",
+    "x86_64-apple-darwin": "bin/agentdeck",
+    "x86_64-pc-windows-msvc": "bin/main.js"
+  },
+  "Icon": "icons/plugin",
+  "Category": "Agent Deck",
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "11.0"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Actions": [
+    {
+      "UUID": "com.simone.agentdeck.status",
+      "Name": "Agent Status",
+      "Icon": "icons/status",
+      "Tooltip": "Shows working / approve / idle for one agent kind. Press to focus it.",
+      "States": [
+        {
+          "Image": "icons/status"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.approve",
+      "Name": "Approve",
+      "Icon": "icons/approve",
+      "Tooltip": "Lights up when an agent waits for permission. Press to approve (Enter).",
+      "States": [
+        {
+          "Image": "icons/approve"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.keys",
+      "Name": "Send Keys",
+      "Icon": "icons/tile",
+      "Tooltip": "Send key presses to the focused agent",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.prompt",
+      "Name": "Prompt",
+      "Icon": "icons/tile",
+      "Tooltip": "Type a prompt into the focused agent",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.launch",
+      "Name": "Launch Agent",
+      "Icon": "icons/tile",
+      "Tooltip": "Start an agent in a new pane next to the focused one",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.project",
+      "Name": "Project",
+      "Icon": "icons/tile",
+      "Tooltip": "Open a project workspace in herdr",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.run",
+      "Name": "Run Command",
+      "Icon": "icons/tile",
+      "Tooltip": "Run a shell command in a helper pane in the focused project",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    }
+  ]
+}

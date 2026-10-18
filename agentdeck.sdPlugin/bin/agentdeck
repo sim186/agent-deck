@@ -1,0 +1,5 @@
+#!/bin/sh
+# macOS/Linux launcher: OpenDeck passes the Stream Deck plugin args; hand them to Node.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+for n in /opt/homebrew/bin/node /usr/local/bin/node /usr/bin/node; do [ -x "$n" ] && exec "$n" "$DIR/plugin.mjs" "$@"; done
+exec node "$DIR/plugin.mjs" "$@"
