@@ -45,70 +45,97 @@ const PROMPTS = [
 const back = { type: 'switch', to: 'Default', label: '< Home', color: C.nav };
 const menu = (to, label) => ({ type: 'switch', to, label, color: C.nav });
 
-// Each profile is a list of keys in reading order (6 per row on the HSV293S).
-// `null` leaves a key empty.
-export default ({ projects = [], terminal } = {}) => ({
-  terminal,
-  profiles: {
-    Default: [
-      ...AGENTS.map((a) => ({ type: 'status', ...a })),
-      { type: 'approve' },
-      { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
+// Physical layout. Default: Mirabox HSV293SV3, a 6x3 grid in OpenDeck whose right
+// column is a display-only screen. Override `device` in deck.local.mjs for other decks
+// (e.g. { cols: 6, rows: 3, screenCols: [] } for 18 real keys).
+const HSV293SV3 = { cols: 6, rows: 3, screenCols: [5] };
 
-      menu('Launch', 'Launch'),
-      menu('Projects', 'Projects'),
-      menu('Prompts', 'Prompts'),
-      menu('Agent', 'Agent'),
-      menu('Git', 'Git'),
-    ],
+// Default screen: one status tile per row of the screen column.
+const SCREEN = [
+  { kinds: ['claude'], label: 'Claude' },
+  { kinds: ['codex'], label: 'Codex' },
+  { kinds: ['opencode', 'pi'], label: 'OC / Pi' },
+];
 
-    // Row 1: new agent next to the focused pane, VS Code on the focused folder.
-    // Rows 2-3: VS Code per project (set `editor: false` on a project to skip it).
-    Launch: [
-      back,
-      ...AGENTS.map((a) => ({ type: 'launch', kind: a.kind, label: `New\n${a.label}`, color: C.launch })),
-      { type: 'editor', label: 'Code\nhere', color: C.editor },
-      ...projects
-        .filter((p) => p.editor !== false)
-        .slice(0, 12)
-        .map((p) => ({ type: 'editor', label: p.label, path: p.path, color: C.editor })),
-    ],
+// Each profile lists its pressable keys in reading order; the installer skips the
+// screen cells. `null` leaves a key empty. Screen tiles are the same in every profile.
+export default ({ projects = [], terminal, device = HSV293SV3, screen = SCREEN } = {}) => {
+  const keyCount = (device.cols - device.screenCols.length) * device.rows;
+  const room = keyCount - 1; // after the Back key
+  return {
+    terminal,
+    device,
+    screen: screen.map((s) => ({ type: 'status', ...s })),
+    profiles: {
+      // Row 1: act on agents. Row 2: menus. Row 3: daily shortcuts.
+      Default: [
+        { type: 'approve' },
+        { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
+        { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
+        { type: 'prompt', label: 'Continue', text: 'continue', color: C.prompt },
+        { type: 'status', label: 'Agents' },
 
-    Projects: [
-      back,
-      ...projects.slice(0, 17).map((p) => ({ type: 'project', color: C.project, ...p })),
-    ],
+        menu('Launch', 'Launch'),
+        menu('Projects', 'Projects'),
+        menu('Prompts', 'Prompts'),
+        menu('Agent', 'Agent'),
+        menu('Git', 'Git'),
 
-    Prompts: [
-      back,
-      ...PROMPTS.map(([label, text]) => ({ type: 'prompt', label, text, color: C.prompt })),
-    ],
+        { type: 'prompt', label: 'Review\ndiff', text: PROMPTS[0][1], color: C.prompt },
+        { type: 'prompt', label: 'Plan\nfirst', text: PROMPTS[4][1], color: C.prompt },
+        { type: 'editor', label: 'Code\nhere', color: C.editor },
+        { type: 'run', label: 'Git\nstatus', command: 'git status -sb', color: C.git },
+        { type: 'prompt', label: 'Commit', text: PROMPTS[8][1], color: C.prompt },
+      ],
 
-    Agent: [
-      back,
-      { type: 'approve' },
-      { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
-      { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
-      { type: 'keys', label: 'Ctrl+C', keys: 'ctrl+c', color: C.agent },
-      { type: 'keys', label: 'Mode', keys: { claude: 'shift+tab', opencode: 'tab' }, color: C.agent },
+      // New agent next to the focused pane, VS Code on the focused folder, then VS Code
+      // per project (set `editor: false` on a project to skip it).
+      Launch: [
+        back,
+        ...AGENTS.map((a) => ({ type: 'launch', kind: a.kind, label: `New\n${a.label}`, color: C.launch })),
+        { type: 'editor', label: 'Code\nhere', color: C.editor },
+        ...projects
+          .filter((p) => p.editor !== false)
+          .slice(0, room - AGENTS.length - 1)
+          .map((p) => ({ type: 'editor', label: p.label, path: p.path, color: C.editor })),
+      ],
 
-      { type: 'prompt', label: 'Clear', text: SLASH.clear, color: C.agent },
-      { type: 'prompt', label: 'Compact', text: SLASH.compact, color: C.agent },
-      { type: 'prompt', label: 'Model', text: SLASH.model, color: C.agent },
-      { type: 'prompt', label: 'Resume', text: SLASH.resume, color: C.agent },
-    ],
+      Projects: [
+        back,
+        ...projects.slice(0, room).map((p) => ({ type: 'project', color: C.project, ...p })),
+      ],
 
-    Git: [
-      back,
-      { type: 'run', label: 'Status', command: 'git status -sb', color: C.git },
-      { type: 'run', label: 'Diff', command: 'git diff --stat', color: C.git },
-      { type: 'run', label: 'Log', command: 'git log --oneline -15', color: C.git },
-      { type: 'run', label: 'Branches', command: 'git branch -vv', color: C.git },
-      { type: 'run', label: 'Pull', command: 'git pull --ff-only', color: C.git },
+      Prompts: [
+        back,
+        ...PROMPTS.slice(0, room).map(([label, text]) => ({ type: 'prompt', label, text, color: C.prompt })),
+      ],
 
-      { type: 'run', label: 'PR\nin web', command: 'gh pr view --web', color: C.git },
-      { type: 'prompt', label: 'Commit', text: PROMPTS[8][1], color: C.prompt },
-      { type: 'prompt', label: 'Open\nPR', text: PROMPTS[9][1], color: C.prompt },
-    ],
-  },
-});
+      Agent: [
+        back,
+        { type: 'approve' },
+        { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
+        { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
+        { type: 'keys', label: 'Ctrl+C', keys: 'ctrl+c', color: C.agent },
+
+        { type: 'keys', label: 'Mode', keys: { claude: 'shift+tab', opencode: 'tab' }, color: C.agent },
+        { type: 'prompt', label: 'Clear', text: SLASH.clear, color: C.agent },
+        { type: 'prompt', label: 'Compact', text: SLASH.compact, color: C.agent },
+        { type: 'prompt', label: 'Model', text: SLASH.model, color: C.agent },
+        { type: 'prompt', label: 'Resume', text: SLASH.resume, color: C.agent },
+      ],
+
+      Git: [
+        back,
+        { type: 'run', label: 'Status', command: 'git status -sb', color: C.git },
+        { type: 'run', label: 'Diff', command: 'git diff --stat', color: C.git },
+        { type: 'run', label: 'Log', command: 'git log --oneline -15', color: C.git },
+        { type: 'run', label: 'Branches', command: 'git branch -vv', color: C.git },
+
+        { type: 'run', label: 'Pull', command: 'git pull --ff-only', color: C.git },
+        { type: 'run', label: 'PR\nin web', command: 'gh pr view --web', color: C.git },
+        { type: 'prompt', label: 'Commit', text: PROMPTS[8][1], color: C.prompt },
+        { type: 'prompt', label: 'Open\nPR', text: PROMPTS[9][1], color: C.prompt },
+      ],
+    },
+  };
+};

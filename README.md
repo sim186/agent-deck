@@ -5,16 +5,21 @@ Mirabox HSV293S (or any OpenDeck device) as a control surface for coding agents
 
 ## Layout
 
+On the Mirabox HSV293SV3 OpenDeck shows a 6x3 grid: 5x3 pressable keys plus a
+display-only screen in the right column. The screen shows one status tile per row
+(default: Claude, Codex, OpenCode + Pi) in every profile.
+
 | Profile | Keys |
 |---|---|
-| **Home** | status per agent (Claude, Codex, OpenCode, Pi), Approve, Stop, menus: Launch, Projects, Prompts, Agent, Git |
+| **Home** | Approve, Deny, Stop, Continue, Agents (overall status, press to focus the most urgent) · menus: Launch, Projects, Prompts, Agent, Git · Review diff, Plan first, Code here, Git status, Commit |
 | **Launch** | start a new agent in a pane next to the focused one; VS Code on the focused folder or on each project |
 | **Projects** | open/focus a herdr workspace per project (from `deck.local.mjs`) |
 | **Prompts** | canned prompts typed into the focused agent |
 | **Agent** | Approve, Deny, Stop, Ctrl+C, mode toggle, clear/compact/model/resume (mapped per agent) |
 | **Git** | status, diff, log, branches, pull, PR in browser (helper pane), commit / open PR (via agent) |
 
-Status keys: spinning green ring = working, yellow = waiting for approval, grey = idle, "Off" = none running.
+Status tiles: spinning green ring = working, yellow = waiting for approval, grey = idle, "Off" = none running.
+Other decks: set `device` (and optionally `screen`) in `deck.local.mjs`.
 
 ## How it works
 

@@ -5,7 +5,18 @@ export default {
   // Windows: window title used by AppActivate (e.g. 'Windows Terminal').
   terminal: 'com.googlecode.iterm2',
 
-  // One key per project in the Projects menu (max 17).
+  // Optional: deck geometry. Default is the Mirabox HSV293SV3 (6x3 grid, right column
+  // is a display-only screen). For a deck with 18 real keys:
+  // device: { cols: 6, rows: 3, screenCols: [] },
+
+  // Optional: what the screen column shows, one status tile per row.
+  // screen: [
+  //   { kinds: ['claude'], label: 'Claude' },
+  //   { kinds: ['codex'], label: 'Codex' },
+  //   { kinds: ['opencode', 'pi'], label: 'OC / Pi' },
+  // ],
+
+  // One key per project in the Projects menu (max 14 on the HSV293SV3).
   // `agent` (optional) starts that agent when the workspace is first created.
   // Each project also gets a VS Code key in the Launch menu (first 12; `editor: false` skips it).
   projects: [

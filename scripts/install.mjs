@@ -129,7 +129,12 @@ async function buildProfiles() {
   const config = (await import(pathToFileURL(path.join(ROOT, 'deck.config.mjs')))).default;
   const localFile = path.join(ROOT, 'deck.local.mjs');
   const local = fs.existsSync(localFile) ? (await import(pathToFileURL(localFile))).default : {};
-  const { profiles, terminal } = config(local);
+  const { profiles, terminal, device: geo, screen } = config(local);
+
+  // Grid cells in reading order, split into pressable keys and display-only screen cells.
+  const cells = Array.from({ length: geo.cols * geo.rows }, (_, i) => i);
+  const screenCells = cells.filter((i) => geo.screenCols.includes(i % geo.cols));
+  const keyCells = cells.filter((i) => !geo.screenCols.includes(i % geo.cols));
 
   const dir = path.join(OPENDECK, 'profiles');
   const devices = fs.existsSync(dir)
@@ -143,11 +148,12 @@ async function buildProfiles() {
 
   for (const device of devices) {
     const ddir = path.join(dir, device);
-    let size = 18;
-    try { size = JSON.parse(fs.readFileSync(path.join(ddir, 'Default.json'), 'utf8')).keys.length || 18; } catch { /* new device */ }
     for (const [name, specs] of Object.entries(profiles)) {
-      if (specs.length > size) throw new Error(`profile ${name} has ${specs.length} keys, device ${device} has ${size}`);
-      const keys = Array.from({ length: size }, (_, i) => keyFor(specs[i], i, device, terminal));
+      if (specs.length > keyCells.length) throw new Error(`profile ${name} has ${specs.length} keys, the deck has ${keyCells.length}`);
+      const layout = new Array(cells.length).fill(null);
+      specs.forEach((spec, n) => { layout[keyCells[n]] = spec; });
+      screenCells.forEach((cell, n) => { layout[cell] = screen[n] ?? null; });
+      const keys = layout.map((spec, i) => keyFor(spec, i, device, terminal));
       fs.writeFileSync(path.join(ddir, `${name}.json`), JSON.stringify({ infobars: [], keys, sliders: [] }, null, 2));
       fs.rmSync(path.join(ddir, `${name}.json.temp`), { force: true });
     }

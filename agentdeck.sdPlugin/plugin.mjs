@@ -98,11 +98,15 @@ function statusFace(key) {
     const n = all.filter((s) => s.state === 'waiting').length;
     return { state: n ? 'waiting' : 'idle', title: n > 1 ? `Approve ${n}` : 'Approve' };
   }
-  const mine = settings.kind ? all.filter((s) => s.kind === settings.kind) : all;
+  const kinds = kindsOf(settings);
+  const mine = kinds ? all.filter((s) => kinds.includes(s.kind)) : all;
   const sum = summarize(mine);
   const word = mine.length ? LOOK[sum.state].word : 'Off';
   return { state: sum.state, title: `${settings.label ?? 'Agents'}\n${sum.count > 1 ? `${word} ${sum.count}` : word}` };
 }
+
+// A status key covers one kind (`kind`), several (`kinds`), or every agent (neither).
+const kindsOf = (settings) => settings.kinds ?? (settings.kind ? [settings.kind] : null);
 
 const isStatus = (key) => key.action === 'status' || key.action === 'approve';
 
@@ -148,8 +152,8 @@ function animate() {
 
 // Pick the agent a key press should act on: the one the user is looking at in
 // herdr if it qualifies, otherwise the first agent in one of `states`.
-function pick(snap, { states, kind } = {}) {
-  let list = snap.agents.filter((a) => a.agent && (!kind || a.agent === kind));
+function pick(snap, { states, kinds } = {}) {
+  let list = snap.agents.filter((a) => a.agent && (!kinds || kinds.includes(a.agent)));
   if (states) list = list.filter((a) => states.includes(a.agent_status));
   return list.find((a) => a.pane_id === snap.focusedPane) ?? list.find((a) => a.focused) ?? list[0];
 }
@@ -176,15 +180,16 @@ const runPanes = new Map(); // workspace id -> pane we opened for commands
 const ACTIONS = {
   async status({ settings }) {
     const snap = await snapshot();
-    const a = pick(snap, { states: ['blocked'], kind: settings.kind })
-      ?? pick(snap, { states: ['working'], kind: settings.kind })
-      ?? pick(snap, { kind: settings.kind });
+    const kinds = kindsOf(settings);
+    const a = pick(snap, { states: ['blocked'], kinds })
+      ?? pick(snap, { states: ['working'], kinds })
+      ?? pick(snap, { kinds });
     if (a) {
       await herdr('agent', 'focus', a.pane_id);
       return raiseTerminal(settings);
     }
     // Not in herdr: bring forward the app hosting the newest hook session (Claude desktop).
-    const s = hookSessions().filter((x) => !settings.kind || x.kind === settings.kind).sort((x, y) => y.updatedAt - x.updatedAt)[0];
+    const s = hookSessions().filter((x) => !kinds || kinds.includes(x.kind)).sort((x, y) => y.updatedAt - x.updatedAt)[0];
     if (s?.bundleId && process.platform === 'darwin') execFile('/usr/bin/open', ['-b', s.bundleId], () => {});
   },
 
