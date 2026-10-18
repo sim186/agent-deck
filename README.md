@@ -3,14 +3,14 @@
 Mirabox HSV293S (or any OpenDeck device) as a control surface for coding agents
 (Claude Code, Codex, OpenCode, Pi) running in [herdr](https://herdr.dev).
 
+## Note
+This layout fits exactly my use case and my workflow, you can ask your agents to adapt it to your needs.
+
 ## Layout
 
 On the Mirabox HSV293SV3 OpenDeck shows a 6x3 grid: 5x3 pressable keys plus a
 display-only screen in the right column. The screen shows two status tiles (Claude; Codex, OpenCode and Pi)
 and, in the bottom row, the time with a countdown to your next Outlook meeting, in every profile.
-
-## Note
-This layout fits exactly my use case and my workflow, you can ask your agents to adapt it to your needs.
 
 ![Home layout](docs/layout.svg)
 
