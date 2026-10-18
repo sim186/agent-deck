@@ -9,6 +9,9 @@ On the Mirabox HSV293SV3 OpenDeck shows a 6x3 grid: 5x3 pressable keys plus a
 display-only screen in the right column. The screen shows two status tiles (Claude; Codex, OpenCode and Pi)
 and, in the bottom row, the time with a countdown to your next Outlook meeting, in every profile.
 
+## Note
+This layout fits exactly my use case and my workflow, you can ask your agents to adapt it to your needs.
+
 ![Home layout](docs/layout.svg)
 
 The deck is meant to sit left of the keyboard: Dictate and Rec are in the far-left column, Approve/Deny next to the screen.
