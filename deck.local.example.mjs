@@ -13,10 +13,14 @@ export default {
   //   dir: '~/Documents/Meetings',
   //   mic: 'default',          // macOS: device name or "default"; Windows: dshow name, e.g. 'Microphone (Realtek Audio)'
   //   system: 'BlackHole 2ch', // loopback device for the other participants (Windows: 'Stereo Mix (Realtek Audio)' or 'CABLE Output (VB-Audio Virtual Cable)')
+  //   summaryModel: 'opencode-go/glm-5.3-flash', // OpenCode model that writes summary.md after transcription
   //   ffmpeg: 'C:\\ffmpeg\\bin\\ffmpeg.exe',
   // },
   // List devices: macOS  ffmpeg -f avfoundation -list_devices true -i ""
   //               Windows ffmpeg -list_devices true -f dshow -i dummy
+
+  // Optional: Outlook calendar (Settings > Calendar > Shared calendars > Publish, ICS or HTML link) for the Agenda menu.
+  // calendar: 'https://outlook.office365.com/owa/calendar/.../calendar.html',
 
   // Optional: deck geometry. Default is the Mirabox HSV293SV3 (6x3 grid, right column
   // is a display-only screen). For a deck with 18 real keys:

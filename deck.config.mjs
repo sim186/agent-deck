@@ -41,7 +41,16 @@ const PROMPTS = [
   ['Summary', 'Summarize what you changed and what is left to do.'],
   ['Commit', 'Commit the current changes with a concise conventional commit message.'],
   ['Open\nPR', 'Push the branch and open a pull request with a clear description.'],
+  // Personal skills (installed in ~/.agents/skills). Self = Simone only, never the whole team.
+  ['Me\nyesterday', 'Use the team-activity skill for myself only (Simone Celestino): what did I do yesterday?'],
+  ['Me\nlast week', 'Use the team-activity skill for myself only (Simone Celestino): what did I do last week?'],
 ];
+
+// The work-time skill lives in pi: run it there in the background with GLM 5.3 Flash and open the answer.
+const WORK_TIME = [['Work time\ntoday', 'today'], ['Work time\nweek', 'this week']].map(([label, when]) => ({
+  type: 'headless', runner: 'pi', name: 'worktime', label, color: C.prompt,
+  text: `Use the worktime-calc skill: calculate my work time for ${when}.`,
+}));
 
 const back = { type: 'switch', to: 'Default', label: '< Home', color: C.nav };
 const menu = (to, label) => ({ type: 'switch', to, label, color: C.nav });
@@ -60,13 +69,14 @@ const SCREEN = [
 
 // Each profile lists its pressable keys in reading order; the installer skips the
 // screen cells. `null` leaves a key empty. Screen tiles are the same in every profile.
-export default ({ projects = [], terminal, handy, meetings = {}, device = HSV293SV3, screen = SCREEN } = {}) => {
+export default ({ projects = [], terminal, handy, calendar, meetings = {}, device = HSV293SV3, screen = SCREEN } = {}) => {
   const keyCount = (device.cols - device.screenCols.length) * device.rows;
   const room = keyCount - 1; // after the Back key
   const rec = (mode, label) => ({ type: 'meeting', mode, label, color: C.voice, ...meetings });
   return {
     terminal,
     handy,
+    calendar,
     device,
     screen: screen.map((s) => ({ type: 'status', ...s })),
     profiles: {
@@ -87,8 +97,14 @@ export default ({ projects = [], terminal, handy, meetings = {}, device = HSV293
         { type: 'prompt', label: 'Review\ndiff', text: PROMPTS[0][1], color: C.prompt },
         rec('toggle', 'Rec'),
         menu('Meeting', 'Meeting'),
-        { type: 'run', label: 'Git\nstatus', command: 'git status -sb', color: C.git },
+        menu('Agenda', 'Agenda'),
         { type: 'prompt', label: 'Commit', text: PROMPTS[8][1], color: C.prompt },
+      ],
+
+      // Upcoming Outlook meetings (calendar URL in deck.local.mjs); press one for a briefing.
+      Agenda: [
+        back,
+        ...Array.from({ length: room }, (_, index) => ({ type: 'agenda', index, color: C.nav })),
       ],
 
       // New agent next to the focused pane, VS Code on the focused folder, then VS Code
@@ -110,7 +126,8 @@ export default ({ projects = [], terminal, handy, meetings = {}, device = HSV293
 
       Prompts: [
         back,
-        ...PROMPTS.slice(0, room).map(([label, text]) => ({ type: 'prompt', label, text, color: C.prompt })),
+        ...PROMPTS.slice(0, room - WORK_TIME.length).map(([label, text]) => ({ type: 'prompt', label, text, color: C.prompt })),
+        ...WORK_TIME,
       ],
 
       Agent: [

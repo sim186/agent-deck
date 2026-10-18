@@ -73,7 +73,7 @@ function installPlugin() {
 
 const ACTION_NAMES = {
   status: 'Agent Status', approve: 'Approve', keys: 'Send Keys', prompt: 'Prompt',
-  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', run: 'Run Command',
+  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', run: 'Run Command', agenda: 'Agenda', headless: 'Headless Prompt',
 };
 
 function state({ image, text = '', alignment = 'middle' }) {
@@ -135,8 +135,8 @@ async function buildProfiles() {
   const config = (await import(pathToFileURL(path.join(ROOT, 'deck.config.mjs')))).default;
   const localFile = path.join(ROOT, 'deck.local.mjs');
   const local = fs.existsSync(localFile) ? (await import(pathToFileURL(localFile))).default : {};
-  const { profiles, terminal, handy, device: geo, screen } = config(local);
-  const common = { terminal, ...(handy ? { handy } : {}) };
+  const { profiles, terminal, handy, calendar, device: geo, screen } = config(local);
+  const common = { terminal, ...(handy ? { handy } : {}), ...(calendar ? { calendar } : {}) };
 
   // Grid cells in reading order, split into pressable keys and display-only screen cells.
   const cells = Array.from({ length: geo.cols * geo.rows }, (_, i) => i);

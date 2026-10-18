@@ -11,7 +11,7 @@ const PART_SECS = 300;
 const WIN = process.platform === 'win32';
 
 export const meeting = {
-  state: 'idle', // idle | recording | transcribing
+  state: 'idle', // idle | recording | transcribing | summarizing
   startedAt: 0,
   progress: '', // e.g. "2/5" while transcribing
   dir: null, // current or last session folder
@@ -141,8 +141,39 @@ async function transcribe(settings) {
     lines.push(`**[${clock(i * PART_SECS * 1000)}]** ${text.trim()}`, '');
   }
   fs.writeFileSync(path.join(dir, 'transcript.md'), lines.join('\n'));
-  Object.assign(meeting, { state: 'idle', progress: '' });
-  onChange();
+  if (settings.summarize === false) {
+    Object.assign(meeting, { state: 'idle', progress: '' });
+    return onChange();
+  }
+  await summarizeMeeting(settings, dir);
+}
+
+const SUMMARY_PROMPT = 'Read the attached meeting transcript and write summary.md in the current directory with: a 5-line summary, decisions, action items (owner, due date if mentioned), and open questions. Keep the language of the meeting. Do not ask questions, just write the file.';
+
+// Runs the OpenCode harness headless on the transcript; writes summary.md next to it.
+export function summarizeMeeting(settings, dir = meeting.dir) {
+  return new Promise((resolve) => {
+    const model = settings.summaryModel ?? 'opencode-go/glm-5.3-flash';
+    const args = ['run', SUMMARY_PROMPT, '-m', model, '--dir', dir, '-f', path.join(dir, 'transcript.md')]; // -f takes a list, so it goes last
+    Object.assign(meeting, { state: 'summarizing', progress: '', dir });
+    onChange();
+    // On Windows opencode is an npm .cmd shim, which needs a shell (and manual quoting).
+    const bin = settings.opencode ?? 'opencode';
+    const stdio = ['ignore', 'ignore', 'pipe'];
+    const child = WIN
+      ? spawn([bin, ...args].map((a) => `"${a.replace(/"/g, '')}"`).join(' '), { shell: true, windowsHide: true, stdio })
+      : spawn(bin, args, { stdio });
+    let stderr = '';
+    child.stderr.on('data', (d) => { stderr += d; });
+    const done = (err) => {
+      if (err) { meeting.error = `summary: ${err}`; console.error(meeting.error); }
+      Object.assign(meeting, { state: 'idle', progress: '' });
+      onChange();
+      resolve();
+    };
+    child.on('error', (e) => done(e.message));
+    child.on('exit', (code) => done(code ? stderr.trim().split('\n').pop() || `opencode exit ${code}` : null));
+  });
 }
 
 export function clock(ms) {

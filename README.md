@@ -11,19 +11,21 @@ display-only screen in the right column. The screen shows one status tile per ro
 
 | Profile | Keys |
 |---|---|
-| **Home** | Approve, Deny, Stop, Dictate, Agents (overall status, press to focus the most urgent) · menus: Launch, Projects, Prompts, Agent, Git · Review diff, Rec, Meeting, Git status, Commit |
+| **Home** | Approve, Deny, Stop, Dictate, Agents (overall status, press to focus the most urgent) · menus: Launch, Projects, Prompts, Agent, Git · Review diff, Rec, Meeting, Agenda, Commit |
 | **Launch** | start a new agent in a pane next to the focused one; VS Code on the focused folder or on each project |
 | **Projects** | open/focus a herdr workspace per project (from `deck.local.mjs`) |
-| **Prompts** | canned prompts typed into the focused agent |
+| **Prompts** | canned prompts typed into the focused agent, incl. the `team-activity` skill for yourself (yesterday / last week) and the pi `worktime-calc` skill (runs in the background with GLM 5.3 Flash, answer opens as markdown) |
+| **Agenda** | next Outlook meetings (time + title); press one and GLM 5.3 Flash (opencode, background) writes a briefing and opens it |
 | **Agent** | Approve, Deny, Stop, Ctrl+C, mode toggle, clear/compact/model/resume (mapped per agent), Dictate / Dictate AI / Cancel |
-| **Meeting** | Rec (toggle), Summary (focused agent summarizes the last transcript), last transcript, meetings folder |
+| **Meeting** | Rec (toggle), Summary (re-run the summary), last transcript, meetings folder |
 | **Git** | status, diff, log, branches, pull, PR in browser (helper pane), commit / open PR (via agent) |
 
 Status tiles: spinning green ring = working, yellow = waiting for approval, grey = idle, "Off" = none running.
 Dictate keys toggle [Handy](https://github.com/cjpais/Handy) (`handy --toggle-transcription`); the text is typed into the focused window.
 Meetings: Rec records the mic (plus an optional loopback device for system audio) with ffmpeg in
 5-minute 16 kHz WAV parts under `~/Documents/Meetings/<date_time>/`; Stop transcribes them locally with
-`handy --transcribe-file` into `transcript.md`. Tell participants you are recording.
+`handy --transcribe-file` into `transcript.md`. After transcription OpenCode (`opencode run -m opencode-go/glm-5.3-flash`, headless) writes `summary.md` next to it; change the model with `summaryModel` in `meetings`. Tell participants you are recording.
+Agenda reads the published Outlook calendar (ICS link, set `calendar` in `deck.local.mjs`; it is private, so that file stays uncommitted).
 Other decks: set `device` (and optionally `screen`) in `deck.local.mjs`.
 
 ## How it works

@@ -12,7 +12,9 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { dotPng, spinnerPng, tilePng, dataUrl } from './png.mjs';
 import { herdr, listAgents, snapshot } from './herdr.mjs';
-import { meeting, onMeetingChange, startMeeting, stopMeeting, lastTranscript, meetingsRoot, clock } from './meeting.mjs';
+import { meeting, onMeetingChange, startMeeting, stopMeeting, summarizeMeeting, lastTranscript, meetingsRoot, clock } from './meeting.mjs';
+import { upcoming, hhmm, describe } from './calendar.mjs';
+import { runHeadless, outputDir } from './headless.mjs';
 
 const STATE_DIR = path.join(os.homedir(), '.claude', 'deck-status');
 const NS = 'com.simone.agentdeck.';
@@ -46,6 +48,7 @@ for (let i = 2; i < process.argv.length; i += 2) args[process.argv[i].replace(/^
 // context -> { action, settings, last }
 const keys = new Map();
 let agents = [];
+let agenda = []; // upcoming Outlook meetings, refreshed by refreshAgenda()
 let frame = 0;
 let anim = null;
 
@@ -124,6 +127,7 @@ function meetingFace() {
     case 'recording': return { image: REC, title: clock(Date.now() - meeting.startedAt) };
     case 'stopping':
     case 'transcribing': return { image: BUSY, title: `Transcr.${meeting.progress ? ` ${meeting.progress}` : ''}` };
+    case 'summarizing': return { image: BUSY, title: 'Summary\n...' };
     default: return { image: tile('#eb4034'), title: meeting.error ? 'Rec\nerror' : 'Rec' };
   }
 }
@@ -131,6 +135,12 @@ function meetingFace() {
 function paint(context, force = false) {
   const key = keys.get(context);
   if (!key) return;
+  if (key.busy) {
+    key.last = null;
+    setImage(context, BUSY);
+    setTitle(context, 'Working...');
+    return;
+  }
   if (key.action === 'dictate' && key.settings.mode !== 'cancel') {
     const sig = String(listening);
     if (!force && sig === key.last) return;
@@ -146,6 +156,16 @@ function paint(context, force = false) {
     key.last = sig;
     setImage(context, face.image);
     setTitle(context, face.title);
+    return;
+  }
+  if (key.action === 'agenda') {
+    const m = agenda[key.settings.index ?? 0];
+    const title = m ? `${hhmm(m.start)}\n${m.subject.slice(0, 22)}` : '-';
+    const sig = title + (m?.start ?? '');
+    if (!force && sig === key.last) return;
+    key.last = sig;
+    setImage(context, tile(m ? key.settings.color ?? '#4f8cff' : '#2a2a2a'));
+    setTitle(context, title);
     return;
   }
   if (!isStatus(key)) {
@@ -321,11 +341,32 @@ const ACTIONS = {
       }
       case 'summary': {
         const file = lastTranscript(settings);
-        if (!file) return;
-        const out = path.join(path.dirname(file), 'summary.md');
-        return ACTIONS.prompt({ settings: { ...settings, text: `Read the meeting transcript at ${file}. Write ${out} with: a 5-line summary, decisions, action items (owner, due date if mentioned), and open questions. Keep the language of the meeting.` } });
+        if (!file || meeting.state !== 'idle') return;
+        return summarizeMeeting(opts, path.dirname(file)).then(() => openPath(path.join(path.dirname(file), 'summary.md')));
       }
     }
+  },
+
+  // One-shot prompt through pi or opencode (GLM 5.3 Flash by default); the answer is saved
+  // as markdown and opened. The key shows "Working..." meanwhile.
+  async headless({ settings, context }) {
+    const key = keys.get(context);
+    if (key?.busy) return;
+    if (key) { key.busy = true; paint(context); }
+    try {
+      const file = await runHeadless({ ...settings, prompt: settings.text, outDir: outputDir(settings) });
+      openPath(file);
+    } finally {
+      if (key) { key.busy = false; paint(context, true); }
+    }
+  },
+
+  // Brief me on one upcoming meeting from the Outlook calendar (always GLM 5.3 Flash via opencode).
+  async agenda({ settings, context }) {
+    const m = (await upcoming(settings.calendar))[settings.index ?? 0];
+    if (!m) return;
+    const text = `Brief me on this meeting from my calendar. Say what it is about, who is involved, and what I should prepare. Use only the details below, do not invent anything.\n\n${describe(m)}`;
+    return ACTIONS.headless({ settings: { runner: 'opencode', name: 'briefing', ...settings, text }, context });
   },
 
   // Open VS Code on a project folder, or on the focused herdr pane's folder when no path is set.
@@ -364,6 +405,7 @@ ws.onmessage = (e) => {
     case 'willAppear':
       keys.set(m.context, { action, settings: m.payload?.settings ?? {} });
       paint(m.context, true);
+      if (action === 'agenda' && !agenda.length) refreshAgenda();
       animate();
       break;
     case 'willDisappear':
@@ -374,7 +416,7 @@ ws.onmessage = (e) => {
       if (keys.has(m.context)) { keys.get(m.context).settings = m.payload?.settings ?? {}; paint(m.context, true); }
       break;
     case 'keyDown':
-      Promise.resolve(ACTIONS[action]?.({ settings: m.payload?.settings ?? {} }))
+      Promise.resolve(ACTIONS[action]?.({ settings: m.payload?.settings ?? {}, context: m.context }))
         .catch((err) => console.error(`${action}: ${err.message}`))
         .finally(() => setTimeout(poll, 300));
       break;
@@ -382,6 +424,13 @@ ws.onmessage = (e) => {
 };
 
 onMeetingChange(() => { for (const c of keys.keys()) paint(c); });
+
+// Meetings still ahead of us, today first; keys of any 'agenda' action read from this list.
+async function refreshAgenda() {
+  const url = [...keys.values()].find((k) => k.settings.calendar)?.settings.calendar;
+  agenda = (await upcoming(url)).filter((m) => m.end > Date.now());
+  for (const c of keys.keys()) if (keys.get(c).action === 'agenda') paint(c);
+}
 
 async function poll() {
   agents = await listAgents();
@@ -392,4 +441,6 @@ fs.mkdirSync(STATE_DIR, { recursive: true });
 let timer;
 fs.watch(STATE_DIR, () => { clearTimeout(timer); timer = setTimeout(repaintAll, 80); });
 setInterval(poll, POLL_MS);
+setInterval(refreshAgenda, 60e3);
 poll();
+refreshAgenda();
