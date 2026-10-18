@@ -59,6 +59,12 @@ function installPlugin() {
   fs.rmSync(dst, { recursive: true, force: true });
   fs.cpSync(path.join(ROOT, 'agentdeck.sdPlugin'), dst, { recursive: true });
   if (!WIN) fs.chmodSync(path.join(dst, 'bin', 'agentdeck'), 0o755);
+  if (process.platform === 'darwin') {
+    // Ad-hoc sign the recorder helper so macOS can remember its microphone permission.
+    const app = path.join(dst, 'recorder', 'AgentDeckRecorder.app');
+    fs.chmodSync(path.join(app, 'Contents', 'MacOS', 'recorder'), 0o755);
+    execFileSync('codesign', ['-s', '-', '--force', app], { stdio: 'ignore' });
+  }
   for (const old of OLD_PLUGINS) fs.rmSync(path.join(OPENDECK, 'plugins', old), { recursive: true, force: true });
   log(`plugin -> ${dst}`);
 }
@@ -67,7 +73,7 @@ function installPlugin() {
 
 const ACTION_NAMES = {
   status: 'Agent Status', approve: 'Approve', keys: 'Send Keys', prompt: 'Prompt',
-  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', run: 'Run Command',
+  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', run: 'Run Command',
 };
 
 function state({ image, text = '', alignment = 'middle' }) {

@@ -60,9 +60,10 @@ const SCREEN = [
 
 // Each profile lists its pressable keys in reading order; the installer skips the
 // screen cells. `null` leaves a key empty. Screen tiles are the same in every profile.
-export default ({ projects = [], terminal, handy, device = HSV293SV3, screen = SCREEN } = {}) => {
+export default ({ projects = [], terminal, handy, meetings = {}, device = HSV293SV3, screen = SCREEN } = {}) => {
   const keyCount = (device.cols - device.screenCols.length) * device.rows;
   const room = keyCount - 1; // after the Back key
+  const rec = (mode, label) => ({ type: 'meeting', mode, label, color: C.voice, ...meetings });
   return {
     terminal,
     handy,
@@ -84,8 +85,8 @@ export default ({ projects = [], terminal, handy, device = HSV293SV3, screen = S
         menu('Git', 'Git'),
 
         { type: 'prompt', label: 'Review\ndiff', text: PROMPTS[0][1], color: C.prompt },
-        { type: 'prompt', label: 'Plan\nfirst', text: PROMPTS[4][1], color: C.prompt },
-        { type: 'editor', label: 'Code\nhere', color: C.editor },
+        rec('toggle', 'Rec'),
+        menu('Meeting', 'Meeting'),
         { type: 'run', label: 'Git\nstatus', command: 'git status -sb', color: C.git },
         { type: 'prompt', label: 'Commit', text: PROMPTS[8][1], color: C.prompt },
       ],
@@ -128,6 +129,15 @@ export default ({ projects = [], terminal, handy, device = HSV293SV3, screen = S
         { type: 'dictate', label: 'Dictate', color: C.voice },
         { type: 'dictate', label: 'Dictate\nAI', mode: 'post', color: C.voice },
         { type: 'dictate', label: 'Cancel\ndictation', mode: 'cancel', color: C.voice },
+      ],
+
+      // Rec toggles recording; Summary asks the focused agent to summarize the last transcript.
+      Meeting: [
+        back,
+        rec('toggle', 'Rec'),
+        rec('summary', 'Summary'),
+        rec('last', 'Last\ntranscript'),
+        rec('folder', 'Meetings\nfolder'),
       ],
 
       Git: [

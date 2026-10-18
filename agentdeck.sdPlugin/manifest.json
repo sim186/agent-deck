@@ -2,7 +2,7 @@
   "Name": "Agent Deck",
   "Description": "Drive coding agents (Claude, Codex, OpenCode, Pi) through herdr",
   "Author": "Simone",
-  "Version": "0.4.0",
+  "Version": "0.5.0",
   "PluginUUID": "com.simone.agentdeck",
   "CodePathMac": "bin/agentdeck",
   "CodePathLin": "bin/agentdeck",
@@ -150,6 +150,21 @@
       "Name": "Dictate",
       "Icon": "icons/tile",
       "Tooltip": "Toggle Handy dictation (text goes to the focused window)",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.meeting",
+      "Name": "Meeting",
+      "Icon": "icons/tile",
+      "Tooltip": "Record a meeting, transcribe it with Handy, summarize it with an agent",
       "States": [
         {
           "Image": "icons/tile"

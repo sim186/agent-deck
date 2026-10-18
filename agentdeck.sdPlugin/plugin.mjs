@@ -12,6 +12,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { dotPng, spinnerPng, tilePng, dataUrl } from './png.mjs';
 import { herdr, listAgents, snapshot } from './herdr.mjs';
+import { meeting, onMeetingChange, startMeeting, stopMeeting, lastTranscript, meetingsRoot, clock } from './meeting.mjs';
 
 const STATE_DIR = path.join(os.homedir(), '.claude', 'deck-status');
 const NS = 'com.simone.agentdeck.';
@@ -115,6 +116,18 @@ const isStatus = (key) => key.action === 'status' || key.action === 'approve';
 let listening = false;
 const LISTENING = dataUrl(dotPng(144, [235, 64, 52]));
 
+const REC = dataUrl(dotPng(144, [235, 64, 52]));
+const BUSY = dataUrl(dotPng(144, [245, 180, 0]));
+
+function meetingFace() {
+  switch (meeting.state) {
+    case 'recording': return { image: REC, title: clock(Date.now() - meeting.startedAt) };
+    case 'stopping':
+    case 'transcribing': return { image: BUSY, title: `Transcr.${meeting.progress ? ` ${meeting.progress}` : ''}` };
+    default: return { image: tile('#eb4034'), title: meeting.error ? 'Rec\nerror' : 'Rec' };
+  }
+}
+
 function paint(context, force = false) {
   const key = keys.get(context);
   if (!key) return;
@@ -124,6 +137,15 @@ function paint(context, force = false) {
     key.last = sig;
     setImage(context, listening ? LISTENING : tile(key.settings.color ?? '#eb4034'));
     setTitle(context, listening ? 'Listening' : key.settings.label ?? 'Dictate');
+    return;
+  }
+  if (key.action === 'meeting' && (key.settings.mode ?? 'toggle') === 'toggle') {
+    const face = meetingFace();
+    const sig = face.title + face.image;
+    if (!force && sig === key.last) return;
+    key.last = sig;
+    setImage(context, face.image);
+    setTitle(context, face.title);
     return;
   }
   if (!isStatus(key)) {
@@ -189,6 +211,12 @@ function handyBin(settings) {
     path.join(process.env.ProgramFiles ?? '', 'Handy', 'handy.exe'),
   ];
   return candidates.find((p) => { try { return p && fs.statSync(p).isFile(); } catch { return false; } });
+}
+
+function openPath(p) {
+  if (process.platform === 'darwin') execFile('/usr/bin/open', [p], () => {});
+  else if (process.platform === 'win32') execFile('explorer.exe', [p], () => {});
+  else execFile('xdg-open', [p], () => {});
 }
 
 const textFor = (value, kind) => (typeof value === 'string' ? value : value?.[kind] ?? value?.default);
@@ -276,6 +304,30 @@ const ACTIONS = {
     listening = settings.mode === 'cancel' ? false : !listening;
   },
 
+  // Meeting recorder: toggle Rec, summarize the last transcript, or open the files.
+  async meeting({ settings }) {
+    const opts = { ...settings, handy: handyBin(settings) };
+    switch (settings.mode ?? 'toggle') {
+      case 'toggle':
+        return meeting.state === 'recording' ? stopMeeting() : startMeeting(opts);
+      case 'folder': {
+        const dir = meetingsRoot(settings);
+        fs.mkdirSync(dir, { recursive: true });
+        return openPath(dir);
+      }
+      case 'last': {
+        const file = lastTranscript(settings);
+        return file && openPath(file);
+      }
+      case 'summary': {
+        const file = lastTranscript(settings);
+        if (!file) return;
+        const out = path.join(path.dirname(file), 'summary.md');
+        return ACTIONS.prompt({ settings: { ...settings, text: `Read the meeting transcript at ${file}. Write ${out} with: a 5-line summary, decisions, action items (owner, due date if mentioned), and open questions. Keep the language of the meeting.` } });
+      }
+    }
+  },
+
   // Open VS Code on a project folder, or on the focused herdr pane's folder when no path is set.
   async editor({ settings }) {
     const dir = settings.path
@@ -328,6 +380,8 @@ ws.onmessage = (e) => {
       break;
   }
 };
+
+onMeetingChange(() => { for (const c of keys.keys()) paint(c); });
 
 async function poll() {
   agents = await listAgents();

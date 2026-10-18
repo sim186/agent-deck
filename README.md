@@ -11,15 +11,19 @@ display-only screen in the right column. The screen shows one status tile per ro
 
 | Profile | Keys |
 |---|---|
-| **Home** | Approve, Deny, Stop, Dictate, Agents (overall status, press to focus the most urgent) · menus: Launch, Projects, Prompts, Agent, Git · Review diff, Plan first, Code here, Git status, Commit |
+| **Home** | Approve, Deny, Stop, Dictate, Agents (overall status, press to focus the most urgent) · menus: Launch, Projects, Prompts, Agent, Git · Review diff, Rec, Meeting, Git status, Commit |
 | **Launch** | start a new agent in a pane next to the focused one; VS Code on the focused folder or on each project |
 | **Projects** | open/focus a herdr workspace per project (from `deck.local.mjs`) |
 | **Prompts** | canned prompts typed into the focused agent |
 | **Agent** | Approve, Deny, Stop, Ctrl+C, mode toggle, clear/compact/model/resume (mapped per agent), Dictate / Dictate AI / Cancel |
+| **Meeting** | Rec (toggle), Summary (focused agent summarizes the last transcript), last transcript, meetings folder |
 | **Git** | status, diff, log, branches, pull, PR in browser (helper pane), commit / open PR (via agent) |
 
 Status tiles: spinning green ring = working, yellow = waiting for approval, grey = idle, "Off" = none running.
 Dictate keys toggle [Handy](https://github.com/cjpais/Handy) (`handy --toggle-transcription`); the text is typed into the focused window.
+Meetings: Rec records the mic (plus an optional loopback device for system audio) with ffmpeg in
+5-minute 16 kHz WAV parts under `~/Documents/Meetings/<date_time>/`; Stop transcribes them locally with
+`handy --transcribe-file` into `transcript.md`. Tell participants you are recording.
 Other decks: set `device` (and optionally `screen`) in `deck.local.mjs`.
 
 ## How it works
@@ -35,7 +39,7 @@ Other decks: set `device` (and optionally `screen`) in `deck.local.mjs`.
 
 ## Install
 
-Requirements: OpenDeck ≥ 2.5 with the device plugin (`opendeck-akp153` for HSV293S), Node ≥ 22, herdr
+Requirements: ffmpeg (for meetings), OpenDeck ≥ 2.5 with the device plugin (`opendeck-akp153` for HSV293S), Node ≥ 22, herdr
 with the integrations for your agents (`herdr integration install claude|codex|opencode|pi`).
 
 ```sh
