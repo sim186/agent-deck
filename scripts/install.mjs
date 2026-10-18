@@ -73,7 +73,7 @@ function installPlugin() {
 
 const ACTION_NAMES = {
   status: 'Agent Status', approve: 'Approve', keys: 'Send Keys', prompt: 'Prompt',
-  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', run: 'Run Command', agenda: 'Agenda', headless: 'Headless Prompt',
+  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', run: 'Run Command', agenda: 'Agenda', clock: 'Next Meeting', agentlist: 'Agent Tile', headless: 'Headless Prompt',
 };
 
 function state({ image, text = '', alignment = 'middle' }) {
@@ -104,8 +104,8 @@ function keyFor(spec, index, device, common) {
     };
   }
   const { type, ...settings } = spec;
-  const live = type === 'status' || type === 'approve';
-  const icon = type === 'status' ? 'status' : type === 'approve' ? 'approve' : 'tile';
+  const live = type === 'status' || type === 'approve' || type === 'agentlist';
+  const icon = type === 'status' || type === 'agentlist' ? 'status' : type === 'approve' ? 'approve' : 'tile';
   const st = state({
     image: `plugins/${PLUGIN_ID}/icons/${icon}@2x.png`,
     text: typeof settings.label === 'string' && !live ? settings.label : '',

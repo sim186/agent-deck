@@ -97,6 +97,7 @@ const setTitle = (context, title) => send({ event: 'setTitle', context, payload:
 
 function statusFace(key) {
   const { action, settings } = key;
+  if (action === 'agentlist') return tileFace(settings.index ?? 0);
   const all = sessions();
   if (action === 'approve') {
     const n = all.filter((s) => s.state === 'waiting').length;
@@ -112,7 +113,24 @@ function statusFace(key) {
 // A status key covers one kind (`kind`), several (`kinds`), or every agent (neither).
 const kindsOf = (settings) => settings.kinds ?? (settings.kind ? [settings.kind] : null);
 
-const isStatus = (key) => key.action === 'status' || key.action === 'approve';
+const isStatus = (key) => key.action === 'status' || key.action === 'approve' || key.action === 'agentlist';
+
+// ---- agent tiles (Agent menu): one per herdr agent, in a stable order ----
+const KIND_SHORT = { claude: 'Cl', codex: 'Cx', opencode: 'OC', pi: 'Pi' };
+const STATE_WORD = { waiting: 'Ask', working: 'Work', idle: 'Idle' };
+let workspaces = new Map(); // workspace_id -> { label, number }
+
+const agentTiles = () => agents
+  .filter((a) => a.agent)
+  .sort((x, y) => (workspaces.get(x.workspace_id)?.number ?? 99) - (workspaces.get(y.workspace_id)?.number ?? 99) || x.pane_id.localeCompare(y.pane_id));
+
+function tileFace(index) {
+  const a = agentTiles()[index];
+  if (!a) return { state: 'idle', title: '-', empty: true };
+  const state = FROM_HERDR[a.agent_status] ?? 'idle';
+  const project = workspaces.get(a.workspace_id)?.label ?? path.basename(a.cwd ?? '') ?? '?';
+  return { state, title: `${marquee(project)}\n${KIND_SHORT[a.agent] ?? a.agent.slice(0, 2)} ${STATE_WORD[state]}${a.focused ? ' <' : ''}` };
+}
 
 // Dictation keys show what we last asked Handy to do. Handy has no state query, so
 // this drifts if you also use Handy's own shortcut; Cancel resets it.
@@ -130,6 +148,32 @@ function meetingFace() {
     case 'summarizing': return { image: BUSY, title: 'Summary\n...' };
     default: return { image: tile('#eb4034'), title: meeting.error ? 'Rec\nerror' : 'Rec' };
   }
+}
+
+// Display tile: wall clock plus how close the next meeting is. Colour warns as it nears.
+function clockFace() {
+  const now = Date.now();
+  const time = hhmm(now);
+  const m = agenda[0];
+  if (!m) return { title: `${time}\nfree`, color: '#2a2a2a' };
+  if (m.start <= now) return { title: `${time}\nin meeting`, color: '#eb4034' };
+  const mins = Math.ceil((m.start - now) / 60e3);
+  let when;
+  if (mins < 60) when = `in ${mins} min`;
+  else if (mins < 24 * 60) when = `in ${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}`;
+  else when = new Date(m.start).toLocaleDateString('en-GB', { weekday: 'short' });
+  const color = mins <= 5 ? '#eb4034' : mins <= 15 ? '#f5b400' : mins <= 30 ? '#4f8cff' : '#2a2a2a';
+  return { title: `${time}\n${when}\n${m.subject.length > 9 ? `${m.subject.slice(0, 8)}.` : m.subject}`, color };
+}
+
+// Titles wider than a key scroll sideways: a pause on the start, then one character per tick.
+const MARQUEE_WIDTH = 9;
+let marqueeTick = 0;
+function marquee(text) {
+  if (text.length <= MARQUEE_WIDTH) return text;
+  const loop = `${text}   `;
+  const off = Math.max(0, marqueeTick - 4) % loop.length;
+  return (loop + loop).slice(off, off + MARQUEE_WIDTH);
 }
 
 function paint(context, force = false) {
@@ -158,9 +202,18 @@ function paint(context, force = false) {
     setTitle(context, face.title);
     return;
   }
+  if (key.action === 'clock') {
+    const face = clockFace();
+    const sig = face.title + face.color;
+    if (!force && sig === key.last) return;
+    key.last = sig;
+    setImage(context, tile(face.color));
+    setTitle(context, face.title);
+    return;
+  }
   if (key.action === 'agenda') {
     const m = agenda[key.settings.index ?? 0];
-    const title = m ? `${hhmm(m.start)}\n${m.subject.slice(0, 22)}` : '-';
+    const title = m ? `${hhmm(m.start)}\n${marquee(m.subject)}` : '-';
     const sig = title + (m?.start ?? '');
     if (!force && sig === key.last) return;
     key.last = sig;
@@ -263,6 +316,13 @@ const ACTIONS = {
     // Not in herdr: bring forward the app hosting the newest hook session (Claude desktop).
     const s = hookSessions().filter((x) => !kinds || kinds.includes(x.kind)).sort((x, y) => y.updatedAt - x.updatedAt)[0];
     if (s?.bundleId && process.platform === 'darwin') execFile('/usr/bin/open', ['-b', s.bundleId], () => {});
+  },
+
+  async agentlist({ settings }) {
+    const a = agentTiles()[settings.index ?? 0];
+    if (!a) return;
+    await herdr('agent', 'focus', a.pane_id);
+    raiseTerminal(settings);
   },
 
   async approve() {
@@ -432,8 +492,13 @@ async function refreshAgenda() {
   for (const c of keys.keys()) if (keys.get(c).action === 'agenda') paint(c);
 }
 
+let pollCount = 0;
 async function poll() {
   agents = await listAgents();
+  if (pollCount++ % 5 === 0) { // workspace names change rarely
+    const list = (await herdr('workspace', 'list'))?.workspaces;
+    if (list) workspaces = new Map(list.map((w) => [w.workspace_id, { label: w.label, number: w.number }]));
+  }
   repaintAll();
 }
 
@@ -442,5 +507,11 @@ let timer;
 fs.watch(STATE_DIR, () => { clearTimeout(timer); timer = setTimeout(repaintAll, 80); });
 setInterval(poll, POLL_MS);
 setInterval(refreshAgenda, 60e3);
+// Agenda keys exist only while that profile is on screen, so this is a no-op otherwise.
+setInterval(() => { for (const [c, k] of keys) if (k.action === 'clock') paint(c); }, 15e3);
+setInterval(() => {
+  marqueeTick++;
+  for (const [c, k] of keys) if (k.action === 'agenda' || k.action === 'agentlist') paint(c);
+}, 450);
 poll();
 refreshAgenda();

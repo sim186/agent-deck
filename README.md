@@ -6,17 +6,22 @@ Mirabox HSV293S (or any OpenDeck device) as a control surface for coding agents
 ## Layout
 
 On the Mirabox HSV293SV3 OpenDeck shows a 6x3 grid: 5x3 pressable keys plus a
-display-only screen in the right column. The screen shows one status tile per row
-(default: Claude, Codex, OpenCode + Pi) in every profile.
+display-only screen in the right column. The screen shows two status tiles (Claude; Codex, OpenCode and Pi)
+and, in the bottom row, the time with a countdown to your next Outlook meeting, in every profile.
+
+![Home layout](docs/layout.svg)
+
+The deck is meant to sit left of the keyboard: Dictate and Rec are in the far-left column, Approve/Deny next to the screen.
+Regenerate the image after changing the layout with `node scripts/layout-svg.mjs`.
 
 | Profile | Keys |
 |---|---|
-| **Home** | Approve, Deny, Stop, Dictate, Agents (overall status, press to focus the most urgent) · menus: Launch, Projects, Prompts, Agent, Git · Review diff, Rec, Meeting, Agenda, Commit |
+| **Home** | Launch, Projects, Prompts, Deny, Approve · Dictate, Git, Meeting, Stop, Agent · Rec, Commit, Agenda, Agents (overall status, press to focus the most urgent), Review diff |
 | **Launch** | start a new agent in a pane next to the focused one; VS Code on the focused folder or on each project |
 | **Projects** | open/focus a herdr workspace per project (from `deck.local.mjs`) |
 | **Prompts** | canned prompts typed into the focused agent, incl. the `team-activity` skill for yourself (yesterday / last week) and the pi `worktime-calc` skill (runs in the background with GLM 5.3 Flash, answer opens as markdown) |
 | **Agenda** | next Outlook meetings (time + title); press one and GLM 5.3 Flash (opencode, background) writes a briefing and opens it |
-| **Agent** | Approve, Deny, Stop, Ctrl+C, mode toggle, clear/compact/model/resume (mapped per agent), Dictate / Dictate AI / Cancel |
+| **Agent** | Approve, Stop, mode toggle, plus one tile per running herdr agent (project, kind, state; press to jump to it). "More": Deny, Ctrl+C, clear/compact/model/resume (mapped per agent), Dictate AI / Cancel |
 | **Meeting** | Rec (toggle), Summary (re-run the summary), last transcript, meetings folder |
 | **Git** | status, diff, log, branches, pull, PR in browser (helper pane), commit / open PR (via agent) |
 

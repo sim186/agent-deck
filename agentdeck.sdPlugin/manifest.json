@@ -191,6 +191,36 @@
       "SupportedInMultiActions": false
     },
     {
+      "UUID": "com.simone.agentdeck.clock",
+      "Name": "Next Meeting",
+      "Icon": "icons/tile",
+      "Tooltip": "Current time and countdown to the next Outlook meeting",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.agentlist",
+      "Name": "Agent Tile",
+      "Icon": "icons/status",
+      "Tooltip": "One running herdr agent: project and state. Press to focus it.",
+      "States": [
+        {
+          "Image": "icons/status"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
       "UUID": "com.simone.agentdeck.agenda",
       "Name": "Agenda",
       "Icon": "icons/tile",

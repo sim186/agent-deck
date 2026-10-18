@@ -63,8 +63,8 @@ const HSV293SV3 = { cols: 6, rows: 3, screenCols: [5] };
 // Default screen: one status tile per row of the screen column.
 const SCREEN = [
   { kinds: ['claude'], label: 'Claude' },
-  { kinds: ['codex'], label: 'Codex' },
-  { kinds: ['opencode', 'pi'], label: 'OC / Pi' },
+  { kinds: ['codex', 'opencode', 'pi'], label: 'Others' },
+  { type: 'clock', label: 'Next' }, // current time + countdown to the next Outlook meeting
 ];
 
 // Each profile lists its pressable keys in reading order; the installer skips the
@@ -80,25 +80,26 @@ export default ({ projects = [], terminal, handy, calendar, meetings = {}, devic
     device,
     screen: screen.map((s) => ({ type: 'status', ...s })),
     profiles: {
-      // Row 1: act on agents. Row 2: menus. Row 3: daily shortcuts.
+      // Left-hand layout (deck left of the keyboard). The far-left column holds Dictate and Rec,
+      // which reach best; Approve/Deny sit beside the screen. Rarer menus fill the middle.
       Default: [
-        { type: 'approve' },
-        { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
-        { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
-        { type: 'dictate', label: 'Dictate', color: C.voice },
-        { type: 'status', label: 'Agents' },
-
         menu('Launch', 'Launch'),
         menu('Projects', 'Projects'),
         menu('Prompts', 'Prompts'),
-        menu('Agent', 'Agent'),
-        menu('Git', 'Git'),
+        { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
+        { type: 'approve' },
 
-        { type: 'prompt', label: 'Review\ndiff', text: PROMPTS[0][1], color: C.prompt },
-        rec('toggle', 'Rec'),
+        { type: 'dictate', label: 'Dictate', color: C.voice },
+        menu('Git', 'Git'),
         menu('Meeting', 'Meeting'),
-        menu('Agenda', 'Agenda'),
+        { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
+        menu('Agent', 'Agent'),
+
+        rec('toggle', 'Rec'),
         { type: 'prompt', label: 'Commit', text: PROMPTS[8][1], color: C.prompt },
+        menu('Agenda', 'Agenda'),
+        { type: 'status', label: 'Agents' },
+        { type: 'prompt', label: 'Review\ndiff', text: PROMPTS[0][1], color: C.prompt },
       ],
 
       // Upcoming Outlook meetings (calendar URL in deck.local.mjs); press one for a briefing.
@@ -130,20 +131,28 @@ export default ({ projects = [], terminal, handy, calendar, meetings = {}, devic
         ...WORK_TIME,
       ],
 
+      // Controls on the first row, then one tile per running herdr agent (project, kind, state);
+      // press a tile to jump to that agent.
       Agent: [
         back,
         { type: 'approve' },
-        { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
         { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
-        { type: 'keys', label: 'Ctrl+C', keys: 'ctrl+c', color: C.agent },
-
         { type: 'keys', label: 'Mode', keys: { claude: 'shift+tab', opencode: 'tab' }, color: C.agent },
+        menu('Session', 'More'),
+
+        ...Array.from({ length: keyCount - 5 }, (_, index) => ({ type: 'agentlist', index })),
+      ],
+
+      // Less frequent session controls (slash commands are mapped per agent).
+      Session: [
+        { type: 'switch', to: 'Agent', label: '< Agents', color: C.nav },
+        { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
+        { type: 'keys', label: 'Ctrl+C', keys: 'ctrl+c', color: C.agent },
         { type: 'prompt', label: 'Clear', text: SLASH.clear, color: C.agent },
         { type: 'prompt', label: 'Compact', text: SLASH.compact, color: C.agent },
+
         { type: 'prompt', label: 'Model', text: SLASH.model, color: C.agent },
         { type: 'prompt', label: 'Resume', text: SLASH.resume, color: C.agent },
-
-        { type: 'dictate', label: 'Dictate', color: C.voice },
         { type: 'dictate', label: 'Dictate\nAI', mode: 'post', color: C.voice },
         { type: 'dictate', label: 'Cancel\ndictation', mode: 'cancel', color: C.voice },
       ],
