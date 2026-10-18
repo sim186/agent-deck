@@ -11,6 +11,7 @@ const C = {
   agent: '#ff8c42',
   git: '#f05033',
   editor: '#007acc',
+  voice: '#eb4034',
 };
 
 const AGENTS = [
@@ -59,11 +60,12 @@ const SCREEN = [
 
 // Each profile lists its pressable keys in reading order; the installer skips the
 // screen cells. `null` leaves a key empty. Screen tiles are the same in every profile.
-export default ({ projects = [], terminal, device = HSV293SV3, screen = SCREEN } = {}) => {
+export default ({ projects = [], terminal, handy, device = HSV293SV3, screen = SCREEN } = {}) => {
   const keyCount = (device.cols - device.screenCols.length) * device.rows;
   const room = keyCount - 1; // after the Back key
   return {
     terminal,
+    handy,
     device,
     screen: screen.map((s) => ({ type: 'status', ...s })),
     profiles: {
@@ -72,7 +74,7 @@ export default ({ projects = [], terminal, device = HSV293SV3, screen = SCREEN }
         { type: 'approve' },
         { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
         { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
-        { type: 'prompt', label: 'Continue', text: 'continue', color: C.prompt },
+        { type: 'dictate', label: 'Dictate', color: C.voice },
         { type: 'status', label: 'Agents' },
 
         menu('Launch', 'Launch'),
@@ -122,6 +124,10 @@ export default ({ projects = [], terminal, device = HSV293SV3, screen = SCREEN }
         { type: 'prompt', label: 'Compact', text: SLASH.compact, color: C.agent },
         { type: 'prompt', label: 'Model', text: SLASH.model, color: C.agent },
         { type: 'prompt', label: 'Resume', text: SLASH.resume, color: C.agent },
+
+        { type: 'dictate', label: 'Dictate', color: C.voice },
+        { type: 'dictate', label: 'Dictate\nAI', mode: 'post', color: C.voice },
+        { type: 'dictate', label: 'Cancel\ndictation', mode: 'cancel', color: C.voice },
       ],
 
       Git: [

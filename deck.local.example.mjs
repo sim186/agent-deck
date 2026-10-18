@@ -5,6 +5,9 @@ export default {
   // Windows: window title used by AppActivate (e.g. 'Windows Terminal').
   terminal: 'com.googlecode.iterm2',
 
+  // Optional: Handy binary for the Dictate keys, if not in the usual install folder.
+  // handy: 'C:\\Program Files\\Handy\\handy.exe',
+
   // Optional: deck geometry. Default is the Mirabox HSV293SV3 (6x3 grid, right column
   // is a display-only screen). For a deck with 18 real keys:
   // device: { cols: 6, rows: 3, screenCols: [] },

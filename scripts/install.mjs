@@ -67,7 +67,7 @@ function installPlugin() {
 
 const ACTION_NAMES = {
   status: 'Agent Status', approve: 'Approve', keys: 'Send Keys', prompt: 'Prompt',
-  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', run: 'Run Command',
+  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', run: 'Run Command',
 };
 
 function state({ image, text = '', alignment = 'middle' }) {
@@ -78,7 +78,7 @@ function state({ image, text = '', alignment = 'middle' }) {
   };
 }
 
-function keyFor(spec, index, device, terminal) {
+function keyFor(spec, index, device, common) {
   if (!spec) return null;
   const context = `Keypad.${index}.0`;
   if (spec.type === 'switch') {
@@ -113,7 +113,7 @@ function keyFor(spec, index, device, terminal) {
       uuid: `com.simone.agentdeck.${type}`, visible_in_action_list: true,
     },
     children: null, context, current_state: 0,
-    settings: { terminal, ...settings },
+    settings: { ...common, ...settings },
     states: [st],
   };
 }
@@ -129,7 +129,8 @@ async function buildProfiles() {
   const config = (await import(pathToFileURL(path.join(ROOT, 'deck.config.mjs')))).default;
   const localFile = path.join(ROOT, 'deck.local.mjs');
   const local = fs.existsSync(localFile) ? (await import(pathToFileURL(localFile))).default : {};
-  const { profiles, terminal, device: geo, screen } = config(local);
+  const { profiles, terminal, handy, device: geo, screen } = config(local);
+  const common = { terminal, ...(handy ? { handy } : {}) };
 
   // Grid cells in reading order, split into pressable keys and display-only screen cells.
   const cells = Array.from({ length: geo.cols * geo.rows }, (_, i) => i);
@@ -153,7 +154,7 @@ async function buildProfiles() {
       const layout = new Array(cells.length).fill(null);
       specs.forEach((spec, n) => { layout[keyCells[n]] = spec; });
       screenCells.forEach((cell, n) => { layout[cell] = screen[n] ?? null; });
-      const keys = layout.map((spec, i) => keyFor(spec, i, device, terminal));
+      const keys = layout.map((spec, i) => keyFor(spec, i, device, common));
       fs.writeFileSync(path.join(ddir, `${name}.json`), JSON.stringify({ infobars: [], keys, sliders: [] }, null, 2));
       fs.rmSync(path.join(ddir, `${name}.json.temp`), { force: true });
     }

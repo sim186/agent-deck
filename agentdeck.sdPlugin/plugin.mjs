@@ -110,9 +110,22 @@ const kindsOf = (settings) => settings.kinds ?? (settings.kind ? [settings.kind]
 
 const isStatus = (key) => key.action === 'status' || key.action === 'approve';
 
+// Dictation keys show what we last asked Handy to do. Handy has no state query, so
+// this drifts if you also use Handy's own shortcut; Cancel resets it.
+let listening = false;
+const LISTENING = dataUrl(dotPng(144, [235, 64, 52]));
+
 function paint(context, force = false) {
   const key = keys.get(context);
   if (!key) return;
+  if (key.action === 'dictate' && key.settings.mode !== 'cancel') {
+    const sig = String(listening);
+    if (!force && sig === key.last) return;
+    key.last = sig;
+    setImage(context, listening ? LISTENING : tile(key.settings.color ?? '#eb4034'));
+    setTitle(context, listening ? 'Listening' : key.settings.label ?? 'Dictate');
+    return;
+  }
   if (!isStatus(key)) {
     if (force) {
       setImage(context, tile(key.settings.color ?? '#5a5a5a'));
@@ -165,6 +178,17 @@ function raiseTerminal(settings) {
   else if (process.platform === 'win32') {
     execFile('powershell.exe', ['-NoProfile', '-Command', `(New-Object -ComObject WScript.Shell).AppActivate('${app.replace(/'/g, "''")}')`], { windowsHide: true }, () => {});
   }
+}
+
+function handyBin(settings) {
+  const candidates = [
+    settings.handy,
+    '/Applications/Handy.app/Contents/MacOS/handy',
+    path.join(process.env.LOCALAPPDATA ?? '', 'Handy', 'handy.exe'),
+    path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'Handy', 'handy.exe'),
+    path.join(process.env.ProgramFiles ?? '', 'Handy', 'handy.exe'),
+  ];
+  return candidates.find((p) => { try { return p && fs.statSync(p).isFile(); } catch { return false; } });
 }
 
 const textFor = (value, kind) => (typeof value === 'string' ? value : value?.[kind] ?? value?.default);
@@ -241,6 +265,15 @@ const ACTIONS = {
       if (pane && settings.agent) await herdr('agent', 'start', `${settings.agent}-${label.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'p'}`, '--kind', settings.agent, '--pane', pane);
     }
     raiseTerminal(settings);
+  },
+
+  // Start/stop Handy dictation; the text lands in whatever window has focus.
+  async dictate({ settings }) {
+    const flag = { post: '--toggle-post-process', cancel: '--cancel' }[settings.mode] ?? '--toggle-transcription';
+    const bin = handyBin(settings);
+    if (!bin) return console.error('Handy not found; set "handy" in deck.local.mjs');
+    execFile(bin, [flag], { windowsHide: true }, () => {});
+    listening = settings.mode === 'cancel' ? false : !listening;
   },
 
   // Open VS Code on a project folder, or on the focused herdr pane's folder when no path is set.
