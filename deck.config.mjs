@@ -10,6 +10,7 @@ const C = {
   prompt: '#a66bff',
   agent: '#ff8c42',
   git: '#f05033',
+  editor: '#007acc',
 };
 
 const AGENTS = [
@@ -61,9 +62,16 @@ export default ({ projects = [], terminal } = {}) => ({
       menu('Git', 'Git'),
     ],
 
+    // Row 1: new agent next to the focused pane, VS Code on the focused folder.
+    // Rows 2-3: VS Code per project (set `editor: false` on a project to skip it).
     Launch: [
       back,
       ...AGENTS.map((a) => ({ type: 'launch', kind: a.kind, label: `New\n${a.label}`, color: C.launch })),
+      { type: 'editor', label: 'Code\nhere', color: C.editor },
+      ...projects
+        .filter((p) => p.editor !== false)
+        .slice(0, 12)
+        .map((p) => ({ type: 'editor', label: p.label, path: p.path, color: C.editor })),
     ],
 
     Projects: [

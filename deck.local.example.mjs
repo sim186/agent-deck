@@ -7,6 +7,7 @@ export default {
 
   // One key per project in the Projects menu (max 17).
   // `agent` (optional) starts that agent when the workspace is first created.
+  // Each project also gets a VS Code key in the Launch menu (first 12; `editor: false` skips it).
   projects: [
     { label: 'Deck', path: '~/Documents/developer/deck', agent: 'claude' },
   ],

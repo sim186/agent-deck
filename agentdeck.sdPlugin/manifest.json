@@ -2,7 +2,7 @@
   "Name": "Agent Deck",
   "Description": "Drive coding agents (Claude, Codex, OpenCode, Pi) through herdr",
   "Author": "Simone",
-  "Version": "0.2.0",
+  "Version": "0.3.0",
   "PluginUUID": "com.simone.agentdeck",
   "CodePathMac": "bin/agentdeck",
   "CodePathLin": "bin/agentdeck",
@@ -105,6 +105,21 @@
       "Name": "Project",
       "Icon": "icons/tile",
       "Tooltip": "Open a project workspace in herdr",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.editor",
+      "Name": "VS Code",
+      "Icon": "icons/tile",
+      "Tooltip": "Open VS Code on a project (or the focused herdr pane folder)",
       "States": [
         {
           "Image": "icons/tile"

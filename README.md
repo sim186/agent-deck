@@ -8,7 +8,7 @@ Mirabox HSV293S (or any OpenDeck device) as a control surface for coding agents
 | Profile | Keys |
 |---|---|
 | **Home** | status per agent (Claude, Codex, OpenCode, Pi), Approve, Stop, menus: Launch, Projects, Prompts, Agent, Git |
-| **Launch** | start a new agent in a pane next to the focused one |
+| **Launch** | start a new agent in a pane next to the focused one; VS Code on the focused folder or on each project |
 | **Projects** | open/focus a herdr workspace per project (from `deck.local.mjs`) |
 | **Prompts** | canned prompts typed into the focused agent |
 | **Agent** | Approve, Deny, Stop, Ctrl+C, mode toggle, clear/compact/model/resume (mapped per agent) |

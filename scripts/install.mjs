@@ -67,7 +67,7 @@ function installPlugin() {
 
 const ACTION_NAMES = {
   status: 'Agent Status', approve: 'Approve', keys: 'Send Keys', prompt: 'Prompt',
-  launch: 'Launch Agent', project: 'Project', run: 'Run Command',
+  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', run: 'Run Command',
 };
 
 function state({ image, text = '', alignment = 'middle' }) {

@@ -238,6 +238,16 @@ const ACTIONS = {
     raiseTerminal(settings);
   },
 
+  // Open VS Code on a project folder, or on the focused herdr pane's folder when no path is set.
+  async editor({ settings }) {
+    const dir = settings.path
+      ? settings.path.replace(/^~(?=$|[\\/])/, os.homedir())
+      : focusedCwd(await snapshot());
+    if (process.platform === 'darwin') execFile('/usr/bin/open', ['-a', 'Visual Studio Code', dir], () => {});
+    else if (process.platform === 'win32') execFile('cmd.exe', ['/c', 'code', dir], { windowsHide: true }, () => {});
+    else execFile('code', [dir], () => {});
+  },
+
   // Run a shell command (git etc.) in a helper pane next to the focused one, reusing it per workspace.
   async run({ settings }) {
     const snap = await snapshot();
