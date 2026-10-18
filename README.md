@@ -22,7 +22,7 @@ Regenerate the image after changing the layout with `node scripts/layout-svg.mjs
 | **Home** | Launch, Projects, Prompts, Deny, Approve · Dictate, Git, Meeting, Stop, Agent · Rec, Commit, Agenda, Agents (overall status, press to focus the most urgent), Review diff |
 | **Launch** | start a new agent in a pane next to the focused one; VS Code on the focused folder or on each project |
 | **Projects** | open/focus a herdr workspace per project (from `deck.local.mjs`) |
-| **Prompts** | canned prompts typed into the focused agent, incl. the `team-activity` skill for yourself (yesterday / last week) and the pi `worktime-calc` skill (runs in the background with GLM 5.3 Flash, answer opens as markdown) |
+| **Prompts** | canned prompts typed into the focused agent, plus the pi skills `team-activity` (for yourself: yesterday / last week) and `worktime-calc`, which run in the background with GLM 5.3 Flash and open the answer as markdown |
 | **Agenda** | next Outlook meetings (time + title); press one and GLM 5.3 Flash (opencode, background) writes a briefing and opens it |
 | **Agent** | Approve, Stop, mode toggle, plus one tile per running herdr agent (project, kind, state; press to jump to it). "More": Deny, Ctrl+C, clear/compact/model/resume (mapped per agent), Dictate AI / Cancel |
 | **Meeting** | Rec (toggle), Summary (re-run the summary), last transcript, meetings folder |

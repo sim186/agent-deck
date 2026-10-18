@@ -41,16 +41,17 @@ const PROMPTS = [
   ['Summary', 'Summarize what you changed and what is left to do.'],
   ['Commit', 'Commit the current changes with a concise conventional commit message.'],
   ['Open\nPR', 'Push the branch and open a pull request with a clear description.'],
-  // Personal skills (installed in ~/.agents/skills). Self = Simone only, never the whole team.
-  ['Me\nyesterday', 'Use the team-activity skill for myself only (Simone Celestino): what did I do yesterday?'],
-  ['Me\nlast week', 'Use the team-activity skill for myself only (Simone Celestino): what did I do last week?'],
 ];
 
-// The work-time skill lives in pi: run it there in the background with GLM 5.3 Flash and open the answer.
-const WORK_TIME = [['Work time\ntoday', 'today'], ['Work time\nweek', 'this week']].map(([label, when]) => ({
-  type: 'headless', runner: 'pi', name: 'worktime', label, color: C.prompt,
-  text: `Use the worktime-calc skill: calculate my work time for ${when}.`,
-}));
+// Personal skills run in pi in the background with GLM 5.3 Flash; the answer opens as markdown.
+// team-activity is limited to myself (Simone Celestino), never the whole team.
+const skill = (name, label, text) => ({ type: 'headless', runner: 'pi', name, label, text, color: C.prompt });
+const WORK_TIME = [
+  skill('activity', 'Me\nyesterday', 'Use the team-activity skill for myself only (Simone Celestino): what did I do yesterday?'),
+  skill('activity', 'Me\nlast week', 'Use the team-activity skill for myself only (Simone Celestino): what did I do last week?'),
+  skill('worktime', 'Work time\ntoday', 'Use the worktime-calc skill: calculate my work time for today.'),
+  skill('worktime', 'Work time\nweek', 'Use the worktime-calc skill: calculate my work time for this week.'),
+];
 
 const back = { type: 'switch', to: 'Default', label: '< Home', color: C.nav };
 const menu = (to, label) => ({ type: 'switch', to, label, color: C.nav });
