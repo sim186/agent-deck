@@ -196,6 +196,17 @@ function marquee(text) {
   return (loop + loop).slice(off, off + MARQUEE_WIDTH);
 }
 
+// Agenda tiles pick their colour from the meeting's day: happening now = red,
+// today = blue, tomorrow = amber, further out = grey.
+function meetingColor(m) {
+  const now = Date.now();
+  if (m.start <= now) return '#eb4034';
+  const day = (t) => new Date(t).toDateString();
+  if (day(m.start) === day(now)) return '#4f8cff';
+  if (day(m.start) === day(now + 864e5)) return '#f5b400';
+  return '#8a8a8a';
+}
+
 function paint(context, force = false) {
   const key = keys.get(context);
   if (!key) return;
@@ -243,10 +254,11 @@ function paint(context, force = false) {
   if (key.action === 'agenda') {
     const m = agenda[key.settings.index ?? 0];
     const title = m ? `${hhmm(m.start)}\n${marquee(m.subject)}` : '-';
-    const sig = title + (m?.start ?? '');
+    const color = m ? meetingColor(m) : '#2a2a2a';
+    const sig = title + color;
     if (!force && sig === key.last) return;
     key.last = sig;
-    setImage(context, tile(m ? key.settings.color ?? '#4f8cff' : '#2a2a2a'));
+    setImage(context, tile(color));
     setTitle(context, title);
     return;
   }
