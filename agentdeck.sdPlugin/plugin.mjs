@@ -15,6 +15,7 @@ import { herdr, listAgents, snapshot } from './herdr.mjs';
 import { meeting, onMeetingChange, startMeeting, stopMeeting, summarizeMeeting, lastTranscript, meetingsRoot, clock } from './meeting.mjs';
 import { upcoming, hhmm, describe } from './calendar.mjs';
 import { runHeadless, outputDir } from './headless.mjs';
+import { limit, refreshLimits } from './limits.mjs';
 
 const STATE_DIR = path.join(os.homedir(), '.claude', 'deck-status');
 const NS = 'com.simone.agentdeck.';
@@ -166,6 +167,25 @@ function clockFace() {
   return { title: `${time}\n${when}\n${m.subject.length > 9 ? `${m.subject.slice(0, 8)}.` : m.subject}`, color };
 }
 
+// Provider usage tile: how much of a limit window is left and when it resets. Colour warns as it fills.
+const LIMIT_NAME = { claude: 'Claude', codex: 'Codex', opencode: 'OpenCode' };
+const WINDOW_NAME = { session: '5h', weekly: 'week', monthly: 'month' };
+function timeLeft(ms) {
+  const mins = Math.max(0, Math.round((ms - Date.now()) / 60e3));
+  if (mins < 60) return `${mins}m`;
+  if (mins < 48 * 60) return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}`;
+  return `${Math.floor(mins / 1440)}d ${Math.floor((mins % 1440) / 60)}h`;
+}
+function limitFace(settings) {
+  const window = settings.window ?? 'weekly';
+  const head = `${LIMIT_NAME[settings.provider] ?? settings.provider}\n${WINDOW_NAME[window]}`;
+  const v = limit(settings.provider, window, settings);
+  if (v.used == null) return { title: `${head}\n${v.error ?? '...'}`, color: '#2a2a2a' };
+  const left = Math.max(0, Math.min(100, Math.round(100 - v.used)));
+  const color = v.error ? '#2a2a2a' : left <= 10 ? '#eb4034' : left <= 30 ? '#c98a00' : '#1f7a46';
+  return { title: `${head}\n${left}% left${v.resetsAt ? `\n${timeLeft(v.resetsAt)}` : ''}`, color };
+}
+
 // Titles wider than a key scroll sideways: a pause on the start, then one character per tick.
 const MARQUEE_WIDTH = 9;
 let marqueeTick = 0;
@@ -204,6 +224,15 @@ function paint(context, force = false) {
   }
   if (key.action === 'clock') {
     const face = clockFace();
+    const sig = face.title + face.color;
+    if (!force && sig === key.last) return;
+    key.last = sig;
+    setImage(context, tile(face.color));
+    setTitle(context, face.title);
+    return;
+  }
+  if (key.action === 'limit') {
+    const face = limitFace(key.settings);
     const sig = face.title + face.color;
     if (!force && sig === key.last) return;
     key.last = sig;
@@ -427,6 +456,11 @@ const ACTIONS = {
     if (!m) return;
     const text = `Brief me on this meeting from my calendar. Say what it is about, who is involved, and what I should prepare. Use only the details below, do not invent anything.\n\n${describe(m)}`;
     return ACTIONS.headless({ settings: { runner: 'opencode', name: 'briefing', ...settings, text }, context });
+  },
+
+  // Pressing a limit tile refetches every provider on the next tick.
+  async limit() {
+    refreshLimits();
   },
 
   // Open VS Code on a project folder, or on the focused herdr pane's folder when no path is set.

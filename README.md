@@ -24,7 +24,7 @@ Regenerate the image after changing the layout with `node scripts/layout-svg.mjs
 | **Projects** | open/focus a herdr workspace per project (from `deck.local.mjs`) |
 | **Prompts** | canned prompts typed into the focused agent, plus the pi skills `team-activity` (for yourself: yesterday / last week) and `worktime-calc`, which run in the background with GLM 5.3 Flash and open the answer as markdown |
 | **Agenda** | next Outlook meetings (time + title); press one and GLM 5.3 Flash (opencode, background) writes a briefing and opens it |
-| **Agent** | Approve, Stop, mode toggle, plus one tile per running herdr agent (project, kind, state; press to jump to it). "More": Deny, Ctrl+C, clear/compact/model/resume (mapped per agent), Dictate AI / Cancel |
+| **Agent** | Approve, Stop, mode toggle, plus one tile per running herdr agent (project, kind, state; press to jump to it), plus usage-limit tiles at the end: Claude weekly, Codex weekly, OpenCode Go monthly (% left, time to reset; green/amber/red; press to refresh). "More": Deny, Ctrl+C, clear/compact/model/resume (mapped per agent), Dictate AI / Cancel |
 | **Meeting** | Rec (toggle), Summary (re-run the summary), last transcript, meetings folder |
 | **Git** | status, diff, log, branches, pull, PR in browser (helper pane), commit / open PR (via agent) |
 
@@ -59,12 +59,12 @@ cp deck.local.example.mjs deck.local.mjs   # edit projects + terminal
 
 ```powershell
 Copy-Item deck.local.example.mjs deck.local.mjs
-.\install.ps1                               # Windows (untested)
+.\install.ps1                               # Windows
 ```
 
 Re-run the installer after editing the config. `--no-hooks` / `-NoHooks` leaves `~/.claude/settings.json` alone.
 
-## Windows notes (untested)
+## Windows notes
 
 - The plugin starts through `bin/main.js` with OpenDeck's Node.js runtime.
 - `terminal` in `deck.local.mjs` is a window title for `AppActivate` (e.g. `Windows Terminal`).

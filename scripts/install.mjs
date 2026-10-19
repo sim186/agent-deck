@@ -73,7 +73,7 @@ function installPlugin() {
 
 const ACTION_NAMES = {
   status: 'Agent Status', approve: 'Approve', keys: 'Send Keys', prompt: 'Prompt',
-  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', run: 'Run Command', agenda: 'Agenda', clock: 'Next Meeting', agentlist: 'Agent Tile', headless: 'Headless Prompt',
+  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', run: 'Run Command', agenda: 'Agenda', clock: 'Next Meeting', agentlist: 'Agent Tile', limit: 'Usage Limit', headless: 'Headless Prompt',
 };
 
 function state({ image, text = '', alignment = 'middle' }) {

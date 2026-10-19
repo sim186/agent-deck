@@ -61,6 +61,14 @@ const menu = (to, label) => ({ type: 'switch', to, label, color: C.nav });
 // (e.g. { cols: 6, rows: 3, screenCols: [] } for 18 real keys).
 const HSV293SV3 = { cols: 6, rows: 3, screenCols: [5] };
 
+// Usage limit tiles at the end of the Agent profile (press one to refresh). `window` is
+// session (5h), weekly or monthly. OpenCode Go comes from its usage API (local cost estimate as fallback).
+const LIMITS = [
+  { type: 'limit', provider: 'claude', window: 'weekly' },
+  { type: 'limit', provider: 'codex', window: 'weekly' },
+  { type: 'limit', provider: 'opencode', window: 'monthly' },
+];
+
 // Default screen: one status tile per row of the screen column.
 const SCREEN = [
   { kinds: ['claude'], label: 'Claude' },
@@ -141,7 +149,8 @@ export default ({ projects = [], terminal, handy, calendar, meetings = {}, devic
         { type: 'keys', label: 'Mode', keys: { claude: 'shift+tab', opencode: 'tab' }, color: C.agent },
         menu('Session', 'More'),
 
-        ...Array.from({ length: keyCount - 5 }, (_, index) => ({ type: 'agentlist', index })),
+        ...Array.from({ length: keyCount - 5 - LIMITS.length }, (_, index) => ({ type: 'agentlist', index })),
+        ...LIMITS,
       ],
 
       // Less frequent session controls (slash commands are mapped per agent).

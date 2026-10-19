@@ -221,6 +221,21 @@
       "SupportedInMultiActions": false
     },
     {
+      "UUID": "com.simone.agentdeck.limit",
+      "Name": "Usage Limit",
+      "Icon": "icons/tile",
+      "Tooltip": "Remaining share of a provider limit window (Claude, Codex, OpenCode Go); press to refresh",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
       "UUID": "com.simone.agentdeck.agenda",
       "Name": "Agenda",
       "Icon": "icons/tile",
