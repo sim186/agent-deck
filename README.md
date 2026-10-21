@@ -11,6 +11,7 @@ This layout fits exactly my use case and my workflow, you can ask your agents to
 On the Mirabox HSV293SV3 OpenDeck shows a 6x3 grid: 5x3 pressable keys plus a
 display-only screen in the right column. The screen shows two status tiles (Claude; Codex, OpenCode and Pi)
 and, in the bottom row, the time with a countdown to your next Outlook meeting, in every profile.
+While a meeting is on but you forgot to press Rec, that tile shows "REC?" and the whole deck flashes a red border every second until the recorder is running. To test the flash without a real meeting: `echo started > ~/.claude/deck-status/test-meeting` (delete the file to stop).
 
 ![Home layout](docs/layout.svg)
 

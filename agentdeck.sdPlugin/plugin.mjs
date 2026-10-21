@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
-import { dotPng, spinnerPng, tilePng, dataUrl } from './png.mjs';
+import { dotPng, spinnerPng, tilePng, ringPng, dataUrl } from './png.mjs';
 import { herdr, listAgents, snapshot } from './herdr.mjs';
 import { meeting, onMeetingChange, startMeeting, stopMeeting, summarizeMeeting, lastTranscript, meetingsRoot, clock } from './meeting.mjs';
 import { upcoming, hhmm, describe } from './calendar.mjs';
@@ -152,11 +152,15 @@ function meetingFace() {
 }
 
 // Display tile: wall clock plus how close the next meeting is. Colour warns as it nears.
+// Debug: the file `~/.claude/deck-status/test-meeting` pretends a meeting is running now,
+// so the whole-deck Rec flash can be tested without touching the calendar.
+const testMeeting = () => fs.existsSync(path.join(STATE_DIR, 'test-meeting'));
 function clockFace() {
   const now = Date.now();
   const time = hhmm(now);
-  const m = agenda[0];
+  const m = testMeeting() ? { start: now - 1, subject: 'TEST' } : agenda[0];
   if (!m) return { title: `${time}\nfree`, color: '#2a2a2a' };
+  if (m.start <= now && meeting.state === 'idle') return { title: `${time}\nin meeting\nREC?`, color: '#eb4034' };
   if (m.start <= now) return { title: `${time}\nin meeting`, color: '#eb4034' };
   const mins = Math.ceil((m.start - now) / 60e3);
   let when;
@@ -289,7 +293,7 @@ function animate() {
   if (moving && !anim) {
     anim = setInterval(() => {
       frame++;
-      for (const [c, k] of keys) if (isStatus(k) && IMAGES[k.state].length > 1) setImage(c, IMAGES[k.state][frame % FRAMES]);
+      for (const [c, k] of keys) if (!recBlink && isStatus(k) && IMAGES[k.state].length > 1) setImage(c, IMAGES[k.state][frame % FRAMES]);
     }, FRAME_MS);
   } else if (!moving && anim) {
     clearInterval(anim);
@@ -555,6 +559,19 @@ setInterval(poll, POLL_MS);
 setInterval(refreshAgenda, 60e3);
 // Agenda keys exist only while that profile is on screen, so this is a no-op otherwise.
 setInterval(() => { for (const [c, k] of keys) if (k.action === 'clock') paint(c); }, 15e3);
+// Rec reminder: while a meeting is happening but the recorder is off, the whole deck
+// flashes every second - a red border flashes over every key (titles stay readable),
+// alternating with the normal faces. Pressing Rec settles everything within a tick.
+const RING = dataUrl(ringPng(144, [235, 64, 52]));
+let recBlink = false;
+setInterval(() => {
+  const m = testMeeting() ? { start: Date.now() } : agenda[0];
+  const warn = m && m.start <= Date.now() && meeting.state === 'idle';
+  if (warn) recBlink = !recBlink;
+  else if (!recBlink) return;
+  recBlink = warn && recBlink;
+  for (const c of keys.keys()) recBlink ? setImage(c, RING) : paint(c, true);
+}, 1000);
 setInterval(() => {
   marqueeTick++;
   for (const [c, k] of keys) if (k.action === 'agenda' || k.action === 'agentlist') paint(c);

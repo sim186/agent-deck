@@ -70,4 +70,16 @@ export function tilePng(size, rgb) {
   });
 }
 
+// Rounded red border with a fully transparent center, drawn over any key face to
+// make the whole deck flash without hiding the titles.
+export function ringPng(size, rgb, { r = size * 0.18, bw = size * 0.04 } = {}) {
+  const half = size / 2, ext = half - r;
+  return encodePng(size, size, (x, y) => {
+    const qx = Math.abs(x + 0.5 - half) - ext, qy = Math.abs(y + 0.5 - half) - ext;
+    const d = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+    const a = Math.min(1, Math.max(0, bw + 0.5 - Math.abs(d)));
+    return [rgb[0], rgb[1], rgb[2], Math.round(a * 255)];
+  });
+}
+
 export const dataUrl = (buf) => `data:image/png;base64,${buf.toString('base64')}`;
