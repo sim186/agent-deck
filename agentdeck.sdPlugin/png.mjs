@@ -60,6 +60,33 @@ export function spinnerPng(size, rgb, phase) {
   });
 }
 
+// Animated microphone with expanding sound waves for the whole-deck meeting reminder.
+export function micPng(size, phase = 0) {
+  const cx = size / 2, cy = size * 0.31, r = size * 0.09, top = cy - size * 0.14, bottom = cy + size * 0.14;
+  const wave = [size * 0.16, size * 0.25, size * 0.34];
+  const edge = size * 0.018;
+  const mod = (n) => ((n % 1) + 1) % 1;
+  return encodePng(size, size, (x, y) => {
+    const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+    const capsule = (Math.abs(dx) <= r && y >= top + r && y <= bottom - r)
+      || Math.hypot(dx, y - (top + r)) <= r
+      || Math.hypot(dx, y - (bottom - r)) <= r;
+    const stem = Math.abs(dx) <= edge && y >= bottom && y <= size * 0.56;
+    const base = Math.abs(y - size * 0.56) <= edge && Math.abs(dx) <= size * 0.12;
+    if (capsule) return [0, 102, 132, 255];
+    if (stem || base) return [0, 102, 132, 255];
+
+    for (const [i, radius] of wave.entries()) {
+      const local = mod(phase - i * 0.18);
+      const visible = local > 0.08 && local < 0.9;
+      const ring = Math.abs(Math.hypot(dx, dy) - radius) <= edge;
+      const side = Math.abs(dx) >= r && Math.abs(dy) <= radius * 0.8;
+      if (visible && ring && side) return [249, 175, 42, 255];
+    }
+    return [0, 0, 0, 255];
+  });
+}
+
 // Static key face for menu/command keys: black with a colored bar on top,
 // so categories read at a glance and the title has room below.
 export function tilePng(size, rgb) {
@@ -79,6 +106,23 @@ export function ringPng(size, rgb, { r = size * 0.18, bw = size * 0.04 } = {}) {
     const d = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
     const a = Math.min(1, Math.max(0, bw + 0.5 - Math.abs(d)));
     return [rgb[0], rgb[1], rgb[2], Math.round(a * 255)];
+  });
+}
+
+// Static document-with-check notification for a completed meeting summary.
+export function summaryPng(size, document = [0, 102, 132], success = [46, 204, 113]) {
+  const left = size * 0.28, right = size * 0.72, top = size * 0.16, bottom = size * 0.82;
+  const fold = size * 0.12, edge = size * 0.025;
+  return encodePng(size, size, (x, y) => {
+    const inside = x >= left && x <= right && y >= top && y <= bottom;
+    const folded = x > right - fold && y < top + fold && x + y < right + top + fold;
+    const border = inside && (x - left < edge || right - x < edge || y - top < edge || bottom - y < edge || folded);
+    const line = x >= left + size * 0.1 && x <= right - size * 0.1 && (Math.abs(y - size * 0.38) < edge || Math.abs(y - size * 0.48) < edge);
+    const check = (x > size * 0.36 && x < size * 0.48 && Math.abs(y - (size * 0.63 + (x - size * 0.36))) < edge)
+      || (x >= size * 0.47 && x < size * 0.65 && Math.abs(y - (size * 0.75 - (x - size * 0.47) * 0.7)) < edge);
+    if (check) return [...success, 255];
+    if (border || line) return [...document, 255];
+    return [0, 0, 0, 255];
   });
 }
 

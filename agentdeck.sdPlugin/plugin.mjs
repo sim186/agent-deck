@@ -10,11 +10,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
-import { dotPng, spinnerPng, tilePng, ringPng, dataUrl } from './png.mjs';
+import { dotPng, spinnerPng, tilePng, micPng, summaryPng, dataUrl } from './png.mjs';
 import { herdr, listAgents, snapshot } from './herdr.mjs';
 import { meeting, onMeetingChange, startMeeting, stopMeeting, summarizeMeeting, lastTranscript, meetingsRoot, clock } from './meeting.mjs';
 import { upcoming, hhmm, describe } from './calendar.mjs';
 import { runHeadless, outputDir } from './headless.mjs';
+import { askDialog } from './dialog.mjs';
+import { activeReminderId, shouldShowReminder } from './rec-reminder.mjs';
 import { limit, refreshLimits } from './limits.mjs';
 
 const STATE_DIR = path.join(os.homedir(), '.claude', 'deck-status');
@@ -140,6 +142,7 @@ const LISTENING = dataUrl(dotPng(144, [235, 64, 52]));
 
 const REC = dataUrl(dotPng(144, [235, 64, 52]));
 const BUSY = dataUrl(dotPng(144, [245, 180, 0]));
+const REMINDER_FRAMES = Array.from({ length: FRAMES }, (_, i) => dataUrl(micPng(144, i / FRAMES)));
 
 function meetingFace() {
   switch (meeting.state) {
@@ -214,6 +217,16 @@ function meetingColor(m) {
 function paint(context, force = false) {
   const key = keys.get(context);
   if (!key) return;
+  if (summaryOverlay) {
+    setImage(context, SUMMARY_READY);
+    setTitle(context, 'Summary\nready');
+    return;
+  }
+  if (reminderOverlay) {
+    setImage(context, REMINDER_FRAMES[reminderFrame]);
+    setTitle(context, 'Record\nmeeting?');
+    return;
+  }
   if (key.busy) {
     key.last = null;
     setImage(context, BUSY);
@@ -293,7 +306,7 @@ function animate() {
   if (moving && !anim) {
     anim = setInterval(() => {
       frame++;
-      for (const [c, k] of keys) if (!recBlink && isStatus(k) && IMAGES[k.state].length > 1) setImage(c, IMAGES[k.state][frame % FRAMES]);
+      for (const [c, k] of keys) if (!reminderOverlay && !summaryOverlay && isStatus(k) && IMAGES[k.state].length > 1) setImage(c, IMAGES[k.state][frame % FRAMES]);
     }, FRAME_MS);
   } else if (!moving && anim) {
     clearInterval(anim);
@@ -406,6 +419,10 @@ const ACTIONS = {
     raiseTerminal(settings);
   },
 
+  async switch({ settings }) {
+    if (settings.device && settings.profile) send({ event: 'switchProfile', device: settings.device, profile: settings.profile });
+  },
+
   async project({ settings }) {
     const dir = settings.path.replace(/^~(?=$|[\\/])/, os.homedir());
     const label = settings.label ?? path.basename(dir);
@@ -434,7 +451,7 @@ const ACTIONS = {
     const opts = { ...settings, handy: handyBin(settings) };
     switch (settings.mode ?? 'toggle') {
       case 'toggle':
-        return meeting.state === 'recording' ? stopMeeting() : startMeeting(opts);
+        return meeting.state === 'recording' ? stopMeeting() : startMeeting({ ...opts, onSummaryReady: showSummaryReady });
       case 'folder': {
         const dir = meetingsRoot(settings);
         fs.mkdirSync(dir, { recursive: true });
@@ -453,13 +470,21 @@ const ACTIONS = {
   },
 
   // One-shot prompt through pi or opencode (GLM 5.3 Flash by default); the answer is saved
-  // as markdown and opened. The key shows "Working..." meanwhile.
+  // as markdown and opened. The key shows "Working..." meanwhile. If the key defines a
+  // dialog, a small native prompt asks for a value first, which replaces <answer> in the
+  // text; cancelling or leaving it empty skips the run.
   async headless({ settings, context }) {
     const key = keys.get(context);
     if (key?.busy) return;
     if (key) { key.busy = true; paint(context); }
     try {
-      const file = await runHeadless({ ...settings, prompt: settings.text, outDir: outputDir(settings) });
+      let prompt = settings.text;
+      if (settings.dialog) {
+        const answer = await askDialog({ title: settings.name ?? 'AgentDeck', ...settings.dialog });
+        if (!answer) return;
+        prompt = prompt.replace('<answer>', answer);
+      }
+      const file = await runHeadless({ ...settings, prompt, outDir: outputDir(settings) });
       openPath(file);
     } finally {
       if (key) { key.busy = false; paint(context, true); }
@@ -525,11 +550,18 @@ ws.onmessage = (e) => {
     case 'didReceiveSettings':
       if (keys.has(m.context)) { keys.get(m.context).settings = m.payload?.settings ?? {}; paint(m.context, true); }
       break;
-    case 'keyDown':
-      Promise.resolve(ACTIONS[action]?.({ settings: m.payload?.settings ?? {}, context: m.context }))
+    case 'keyDown': {
+      const settings = m.payload?.settings ?? {};
+      // An overlay turns the first press into acknowledgement. Only Rec starts recording.
+      if (summaryOverlay) { clearSummaryOverlay(); break; }
+      const startsRecording = action === 'meeting' && (settings.mode ?? 'toggle') === 'toggle' && meeting.state === 'idle';
+      if (startsRecording) clearReminderOverlay();
+      else if (dismissRecordingReminder()) break;
+      Promise.resolve(ACTIONS[action]?.({ settings, context: m.context }))
         .catch((err) => console.error(`${action}: ${err.message}`))
         .finally(() => setTimeout(poll, 300));
       break;
+    }
   }
 };
 
@@ -559,19 +591,60 @@ setInterval(poll, POLL_MS);
 setInterval(refreshAgenda, 60e3);
 // Agenda keys exist only while that profile is on screen, so this is a no-op otherwise.
 setInterval(() => { for (const [c, k] of keys) if (k.action === 'clock') paint(c); }, 15e3);
-// Rec reminder: while a meeting is happening but the recorder is off, the whole deck
-// flashes every second - a red border flashes over every key (titles stay readable),
-// alternating with the normal faces. Pressing Rec settles everything within a tick.
-const RING = dataUrl(ringPng(144, [235, 64, 52]));
-let recBlink = false;
+// Rec reminder: while a meeting is happening but the recorder is off, every key shows
+// an animated microphone. Starting Rec or pressing another key clears it; the latter
+// also suppresses this reminder for the current meeting.
+const SUMMARY_READY = dataUrl(summaryPng(144));
+let reminderOverlay = false;
+let reminderFrame = 0;
+let dismissedReminderId = null;
+let summaryOverlay = false;
+
+function clearReminderOverlay() {
+  if (!reminderOverlay) return;
+  reminderOverlay = false;
+  reminderFrame = 0;
+  for (const c of keys.keys()) paint(c, true);
+}
+
+function dismissRecordingReminder() {
+  const isTest = testMeeting();
+  const m = isTest ? { start: Date.now() } : agenda[0];
+  const id = activeReminderId({ meeting: m, isTest });
+  if (!id || dismissedReminderId === id) return false;
+  dismissedReminderId = id;
+  clearReminderOverlay();
+  return true;
+}
+
+function showSummaryReady(file) {
+  summaryOverlay = true;
+  reminderOverlay = false;
+  for (const c of keys.keys()) paint(c, true);
+  openPath(file);
+}
+
+function clearSummaryOverlay() {
+  if (!summaryOverlay) return;
+  summaryOverlay = false;
+  for (const c of keys.keys()) paint(c, true);
+}
+
 setInterval(() => {
-  const m = testMeeting() ? { start: Date.now() } : agenda[0];
-  const warn = m && m.start <= Date.now() && meeting.state === 'idle';
-  if (warn) recBlink = !recBlink;
-  else if (!recBlink) return;
-  recBlink = warn && recBlink;
-  for (const c of keys.keys()) recBlink ? setImage(c, RING) : paint(c, true);
+  if (summaryOverlay) return;
+  const isTest = testMeeting();
+  const m = isTest ? { start: Date.now() } : agenda[0];
+  const showReminder = shouldShowReminder({ meeting: m, recorderIdle: meeting.state === 'idle', dismissedId: dismissedReminderId, isTest });
+  if (showReminder === reminderOverlay) return;
+  reminderOverlay = showReminder;
+  reminderFrame = 0;
+  for (const c of keys.keys()) paint(c, true);
 }, 1000);
+setInterval(() => {
+  if (!reminderOverlay) return;
+  reminderFrame = (reminderFrame + 1) % REMINDER_FRAMES.length;
+  for (const c of keys.keys()) setImage(c, REMINDER_FRAMES[reminderFrame]);
+}, FRAME_MS);
 setInterval(() => {
   marqueeTick++;
   for (const [c, k] of keys) if (k.action === 'agenda' || k.action === 'agentlist') paint(c);

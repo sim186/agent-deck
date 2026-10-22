@@ -15,7 +15,6 @@ const OPENDECK = WIN
   ? path.join(process.env.APPDATA, 'opendeck')
   : path.join(os.homedir(), 'Library', 'Application Support', 'opendeck');
 const PLUGIN_ID = 'com.simone.agentdeck.sdPlugin';
-const STARTER = 'com.amansprojects.starterpack.sdPlugin';
 const OLD_PLUGINS = ['com.simone.claudestatus.sdPlugin'];
 
 const log = (msg) => console.log(`- ${msg}`);
@@ -73,7 +72,7 @@ function installPlugin() {
 
 const ACTION_NAMES = {
   status: 'Agent Status', approve: 'Approve', keys: 'Send Keys', prompt: 'Prompt',
-  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', run: 'Run Command', agenda: 'Agenda', clock: 'Next Meeting', agentlist: 'Agent Tile', limit: 'Usage Limit', headless: 'Headless Prompt',
+  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', switch: 'Switch Profile', run: 'Run Command', agenda: 'Agenda', clock: 'Next Meeting', agentlist: 'Agent Tile', limit: 'Usage Limit', headless: 'Headless Prompt',
 };
 
 function state({ image, text = '', alignment = 'middle' }) {
@@ -87,22 +86,6 @@ function state({ image, text = '', alignment = 'middle' }) {
 function keyFor(spec, index, device, common) {
   if (!spec) return null;
   const context = `Keypad.${index}.0`;
-  if (spec.type === 'switch') {
-    const image = `plugins/${PLUGIN_ID}/icons/nav@2x.png`;
-    const st = state({ image, text: spec.label });
-    return {
-      action: {
-        controllers: ['Keypad'], disable_automatic_states: false, encoder: null,
-        icon: `plugins/${STARTER}/icons/switchProfile.png`, name: 'Switch Profile', plugin: STARTER,
-        property_inspector: `plugins/${STARTER}/propertyInspector/switchProfile.html`,
-        states: [st], supported_in_multi_actions: true, tooltip: 'Switch to another profile',
-        uuid: 'com.amansprojects.starterpack.switchprofile', visible_in_action_list: true,
-      },
-      children: null, context, current_state: 0,
-      settings: { device, profile: spec.to },
-      states: [st],
-    };
-  }
   const { type, ...settings } = spec;
   const live = type === 'status' || type === 'approve' || type === 'agentlist';
   const icon = type === 'status' || type === 'agentlist' ? 'status' : type === 'approve' ? 'approve' : 'tile';
@@ -119,7 +102,7 @@ function keyFor(spec, index, device, common) {
       uuid: `com.simone.agentdeck.${type}`, visible_in_action_list: true,
     },
     children: null, context, current_state: 0,
-    settings: { ...common, ...settings },
+    settings: { ...common, ...settings, ...(type === 'switch' ? { device, profile: spec.to } : {}) },
     states: [st],
   };
 }

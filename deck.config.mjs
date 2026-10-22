@@ -43,14 +43,21 @@ const PROMPTS = [
   ['Open\nPR', 'Push the branch and open a pull request with a clear description.'],
 ];
 
-// Personal skills run in pi in the background with GLM 5.3 Flash; the answer opens as markdown.
-// team-activity is limited to myself (Simone Celestino), never the whole team.
-const skill = (name, label, text) => ({ type: 'headless', runner: 'pi', name, label, text, color: C.prompt });
+// Individual-use skills run in pi in the background with GLM 5.3 Flash; the answer opens as markdown.
+// team-activity is limited to the current user, never the whole team.
+const skill = (name, label, text, extra = {}) => ({ type: 'headless', runner: 'pi', name, label, text, color: C.prompt, ...extra });
 const WORK_TIME = [
-  skill('activity', 'Me\nyesterday', 'Use the team-activity skill for myself only (Simone Celestino): what did I do yesterday?'),
-  skill('activity', 'Me\nlast week', 'Use the team-activity skill for myself only (Simone Celestino): what did I do last week?'),
+  skill('activity', 'Me\nyesterday', 'Use the team-activity skill for myself only: what did I do yesterday?'),
+  skill('activity', 'Me\nlast week', 'Use the team-activity skill for myself only: what did I do last week?'),
   skill('worktime', 'Work time\ntoday', 'Use the worktime-calc skill: calculate my work time for today.'),
-  skill('worktime', 'Work time\nweek', 'Use the worktime-calc skill: calculate my work time for this week.'),
+  skill('worktime', 'Work time\nask', 'Use the worktime-calc skill: calculate my work time for <answer>.', {
+    dialog: {
+      title: 'Work time',
+      message: 'Which period? (tick days below, or type anything)',
+      options: ['yesterday', 'this week', 'last week', 'this month'],
+      days: 7,
+    },
+  }),
 ];
 
 const back = { type: 'switch', to: 'Default', label: '< Home', color: C.nav };

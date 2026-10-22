@@ -11,7 +11,7 @@ This layout fits exactly my use case and my workflow, you can ask your agents to
 On the Mirabox HSV293SV3 OpenDeck shows a 6x3 grid: 5x3 pressable keys plus a
 display-only screen in the right column. The screen shows two status tiles (Claude; Codex, OpenCode and Pi)
 and, in the bottom row, the time with a countdown to your next Outlook meeting, in every profile.
-While a meeting is on but you forgot to press Rec, that tile shows "REC?" and the whole deck flashes a red border every second until the recorder is running. To test the flash without a real meeting: `echo started > ~/.claude/deck-status/test-meeting` (delete the file to stop).
+While a meeting is on but you have not pressed Rec, every key shows an animated microphone reminder. Press Rec to begin recording; press any other key to dismiss that meeting's reminder without running the key action. To test it without a real meeting: `echo started > ~/.claude/deck-status/test-meeting` (delete the file to stop).
 
 ![Home layout](docs/layout.svg)
 
@@ -23,7 +23,7 @@ Regenerate the image after changing the layout with `node scripts/layout-svg.mjs
 | **Home** | Launch, Projects, Prompts, Deny, Approve · Dictate, Git, Meeting, Stop, Agent · Rec, Commit, Agenda, Agents (overall status, press to focus the most urgent), Review diff |
 | **Launch** | start a new agent in a pane next to the focused one; VS Code on the focused folder or on each project |
 | **Projects** | open/focus a herdr workspace per project (from `deck.local.mjs`) |
-| **Prompts** | canned prompts typed into the focused agent, plus the pi skills `team-activity` (for yourself: yesterday / last week) and `worktime-calc`, which run in the background with GLM 5.3 Flash and open the answer as markdown |
+| **Prompts** | canned prompts typed into the focused agent, plus the pi skills `team-activity` (for yourself: yesterday / last week) and `worktime-calc`, which run in the background with GLM 5.3 Flash and open the answer as markdown. Work-time keys may define `dialog`: a small native prompt asks for a value (e.g. which period) before the run |
 | **Agenda** | next Outlook meetings (time + title); press one and GLM 5.3 Flash (opencode, background) writes a briefing and opens it |
 | **Agent** | Approve, Stop, mode toggle, plus one tile per running herdr agent (project, kind, state; press to jump to it), plus usage-limit tiles at the end: Claude weekly, Codex weekly, OpenCode Go monthly (% left, time to reset; green/amber/red; press to refresh). "More": Deny, Ctrl+C, clear/compact/model/resume (mapped per agent), Dictate AI / Cancel |
 | **Meeting** | Rec (toggle), Summary (re-run the summary), last transcript, meetings folder |

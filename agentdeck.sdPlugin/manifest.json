@@ -176,6 +176,21 @@
       "SupportedInMultiActions": false
     },
     {
+      "UUID": "com.simone.agentdeck.switch",
+      "Name": "Switch Profile",
+      "Icon": "icons/tile",
+      "Tooltip": "Switch to an Agent Deck profile",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
       "UUID": "com.simone.agentdeck.headless",
       "Name": "Headless Prompt",
       "Icon": "icons/tile",

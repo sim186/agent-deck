@@ -146,6 +146,15 @@ async function transcribe(settings) {
     return onChange();
   }
   await summarizeMeeting(settings, dir);
+  notifySummaryReady(settings, dir);
+}
+
+// A recording can opt into opening its completed summary; manual Summary presses stay separate.
+export function notifySummaryReady(settings, dir) {
+  const file = path.join(dir, 'summary.md');
+  if (!fs.existsSync(file)) return false;
+  settings.onSummaryReady?.(file);
+  return true;
 }
 
 const SUMMARY_PROMPT = 'Read the attached meeting transcript and write summary.md in the current directory with: a 5-line summary, decisions, action items (owner, due date if mentioned), and open questions. Keep the language of the meeting. Do not ask questions, just write the file.';
