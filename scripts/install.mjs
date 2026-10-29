@@ -70,9 +70,11 @@ function installPlugin() {
 
 // ---------- profiles ----------
 
+const STARTER_PACK = 'com.amansprojects.starterpack.sdPlugin';
+
 const ACTION_NAMES = {
   status: 'Agent Status', approve: 'Approve', keys: 'Send Keys', prompt: 'Prompt',
-  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', switch: 'Switch Profile', run: 'Run Command', agenda: 'Agenda', clock: 'Next Meeting', agentlist: 'Agent Tile', limit: 'Usage Limit', headless: 'Headless Prompt',
+  launch: 'Launch Agent', project: 'Project', editor: 'VS Code', dictate: 'Dictate', meeting: 'Meeting', teams: 'Teams Share', switch: 'Switch Profile', run: 'Run Command', agenda: 'Agenda', clock: 'Next Meeting', agentlist: 'Agent Tile', limit: 'Usage Limit', headless: 'Headless Prompt', audio: 'Audio',
 };
 
 function state({ image, text = '', alignment = 'middle' }) {
@@ -89,17 +91,22 @@ function keyFor(spec, index, device, common) {
   const { type, ...settings } = spec;
   const live = type === 'status' || type === 'approve' || type === 'agentlist';
   const icon = type === 'status' || type === 'agentlist' ? 'status' : type === 'approve' ? 'approve' : 'tile';
+  // OpenDeck's bundled Starter Pack switches profiles on key-up, independently of
+  // Agent Deck's status/animation process.
+  const builtInSwitch = type === 'switch';
+  const plugin = builtInSwitch ? STARTER_PACK : PLUGIN_ID;
+  const actionIcon = builtInSwitch ? `plugins/${plugin}/icons/switchProfile.png` : `plugins/${PLUGIN_ID}/icons/${icon}@2x.png`;
   const st = state({
-    image: `plugins/${PLUGIN_ID}/icons/${icon}@2x.png`,
+    image: builtInSwitch ? `plugins/${PLUGIN_ID}/icons/nav@2x.png` : actionIcon,
     text: typeof settings.label === 'string' && !live ? settings.label : '',
     alignment: live ? 'bottom' : 'middle',
   });
   return {
     action: {
       controllers: ['Keypad'], disable_automatic_states: false, encoder: null,
-      icon: `plugins/${PLUGIN_ID}/icons/${icon}@2x.png`, name: ACTION_NAMES[type], plugin: PLUGIN_ID,
-      property_inspector: '', states: [st], supported_in_multi_actions: false, tooltip: '',
-      uuid: `com.simone.agentdeck.${type}`, visible_in_action_list: true,
+      icon: actionIcon, name: ACTION_NAMES[type], plugin,
+      property_inspector: builtInSwitch ? `plugins/${plugin}/propertyInspector/switchProfile.html` : '', states: [st], supported_in_multi_actions: builtInSwitch, tooltip: '',
+      uuid: builtInSwitch ? 'com.amansprojects.starterpack.switchprofile' : `com.simone.agentdeck.${type}`, visible_in_action_list: true,
     },
     children: null, context, current_state: 0,
     settings: { ...common, ...settings, ...(type === 'switch' ? { device, profile: spec.to } : {}) },
@@ -143,7 +150,7 @@ async function buildProfiles() {
       const layout = new Array(cells.length).fill(null);
       specs.forEach((spec, n) => { layout[keyCells[n]] = spec; });
       screenCells.forEach((cell, n) => { layout[cell] = screen[n] ?? null; });
-      const keys = layout.map((spec, i) => keyFor(spec, i, device, common));
+      const keys = layout.map((spec, i) => keyFor(spec, i, device, { ...common, device }));
       fs.writeFileSync(path.join(ddir, `${name}.json`), JSON.stringify({ infobars: [], keys, sliders: [] }, null, 2));
       fs.rmSync(path.join(ddir, `${name}.json.temp`), { force: true });
     }

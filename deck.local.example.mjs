@@ -14,6 +14,7 @@ export default {
   //   mic: 'default',          // macOS: device name or "default"; Windows: dshow name, e.g. 'Microphone (Realtek Audio)'
   //   system: 'BlackHole 2ch', // loopback device for the other participants (Windows: 'Stereo Mix (Realtek Audio)' or 'CABLE Output (VB-Audio Virtual Cable)')
   //   summaryModel: 'opencode-go/glm-5.3-flash', // OpenCode model that writes summary.md after transcription
+  //   vault: '~/Documents/Obsidian/my-vault/Meetings', // optional: copy only summary.md here; audio and transcript stay local
   //   ffmpeg: 'C:\\ffmpeg\\bin\\ffmpeg.exe',
   // },
   // List devices: macOS  ffmpeg -f avfoundation -list_devices true -i ""

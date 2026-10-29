@@ -176,6 +176,21 @@
       "SupportedInMultiActions": false
     },
     {
+      "UUID": "com.simone.agentdeck.teams",
+      "Name": "Teams Share",
+      "Icon": "icons/tile",
+      "Tooltip": "Open Teams Share content, then choose a single window",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
       "UUID": "com.simone.agentdeck.switch",
       "Name": "Switch Profile",
       "Icon": "icons/tile",
@@ -255,6 +270,21 @@
       "Name": "Agenda",
       "Icon": "icons/tile",
       "Tooltip": "An upcoming Outlook meeting; press to have the agent brief you on it",
+      "States": [
+        {
+          "Image": "icons/tile"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": false
+    },
+    {
+      "UUID": "com.simone.agentdeck.audio",
+      "Name": "Audio",
+      "Icon": "icons/tile",
+      "Tooltip": "Speaker volume up/down, or mute/unmute the microphone",
       "States": [
         {
           "Image": "icons/tile"

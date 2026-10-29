@@ -18,6 +18,47 @@ export const meeting = {
   error: null,
 };
 
+const cleanText = (value) => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+
+// Calendar data is only used when recording begins during that event. It is copied into
+// transcript.md so re-summarising an older recording keeps the same title and people.
+export function calendarContext(event) {
+  const title = cleanText(event?.subject);
+  if (!title) return null;
+  const organizer = cleanText(event.organizer);
+  const seen = new Set();
+  const attendees = (event.attendees ?? []).map(cleanText).filter((person) => {
+    const key = person.toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { title, organizer, attendees };
+}
+
+export function transcriptHeader({ dir, startedAt, parts, calendarMeeting }) {
+  const calendar = calendarContext(calendarMeeting);
+  const title = calendar?.title ?? `Meeting ${path.basename(dir).replace('_', ' ')}`;
+  return [
+    `# ${title}`,
+    '',
+    ...(calendar ? [
+      '## Calendar',
+      `- Title: ${calendar.title}`,
+      ...(calendar.organizer ? [`- Organizer: ${calendar.organizer}`] : []),
+      ...(calendar.attendees.length ? [`- Attendees: ${calendar.attendees.join(', ')}`] : []),
+      '',
+    ] : []),
+    '## Recording',
+    `- Started: ${new Date(startedAt).toLocaleString()}`,
+    `- Duration: ${clock(Date.now() - startedAt)}`,
+    `- Audio: ${parts.length} part(s) in this folder`,
+    '',
+    '## Transcript',
+    '',
+  ];
+}
+
 // macOS: OpenDeck has no microphone usage description, so anything it spawns records
 // silence. We launch ffmpeg through a tiny app bundle that does (see recorder/).
 const RECORDER_APP = path.join(path.dirname(fileURLToPath(import.meta.url)), 'recorder', 'AgentDeckRecorder.app');
@@ -28,6 +69,24 @@ export const onMeetingChange = (fn) => { onChange = fn; };
 
 const expand = (p) => p.replace(/^~(?=$|[\\/])/, os.homedir());
 export const meetingsRoot = (settings) => expand(settings.dir ?? '~/Documents/Meetings');
+export const meetingsVault = (settings) => settings.vault ? expand(settings.vault) : null;
+
+const safeName = (name) => name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120);
+
+// Copy only the Markdown summary into an optional Git-synced Obsidian vault. Audio and
+// the full transcript deliberately remain in the local recording directory.
+export function exportSummaryToVault(settings, dir) {
+  const vault = meetingsVault(settings);
+  const summary = path.join(dir, 'summary.md');
+  if (!vault || !fs.existsSync(summary)) return null;
+  const content = fs.readFileSync(summary, 'utf8');
+  const title = content.match(/^#\s+(.+)$/m)?.[1] ?? path.basename(dir).replace('_', ' ');
+  const stamp = path.basename(dir).replace('_', ' ');
+  const target = path.join(vault, `${stamp} - ${safeName(title) || 'Meeting'}.md`);
+  fs.mkdirSync(vault, { recursive: true });
+  fs.writeFileSync(target, content);
+  return target;
+}
 
 function findFfmpeg(settings) {
   const exe = WIN ? 'ffmpeg.exe' : 'ffmpeg';
@@ -124,16 +183,7 @@ async function transcribe(settings) {
   const parts = fs.readdirSync(dir).filter((f) => /^part-\d+\.wav$/.test(f)).sort();
   const bin = settings.handy;
   meeting.state = 'transcribing';
-  const lines = [
-    `# Meeting ${path.basename(dir).replace('_', ' ')}`,
-    '',
-    `- Started: ${new Date(startedAt).toLocaleString()}`,
-    `- Duration: ${clock(Date.now() - startedAt)}`,
-    `- Audio: ${parts.length} part(s) in this folder`,
-    '',
-    '## Transcript',
-    '',
-  ];
+  const lines = transcriptHeader({ dir, startedAt, parts, calendarMeeting: settings.calendarMeeting });
   for (const [i, part] of parts.entries()) {
     meeting.progress = `${i + 1}/${parts.length}`;
     onChange();
@@ -157,7 +207,7 @@ export function notifySummaryReady(settings, dir) {
   return true;
 }
 
-const SUMMARY_PROMPT = 'Read the attached meeting transcript and write summary.md in the current directory with: a 5-line summary, decisions, action items (owner, due date if mentioned), and open questions. Keep the language of the meeting. Do not ask questions, just write the file.';
+const SUMMARY_PROMPT = 'Read the attached meeting transcript and write summary.md in the current directory with: a 5-line summary, decisions, action items (owner, due date if mentioned), and open questions. Keep the language of the meeting. If the transcript has a "## Calendar" section, use its Title exactly as the level-one heading and include its Organizer and Attendees in a "## Participants" section; do not invent people. Do not ask questions, just write the file.';
 
 // Runs the OpenCode harness headless on the transcript; writes summary.md next to it.
 export function summarizeMeeting(settings, dir = meeting.dir) {
@@ -176,6 +226,9 @@ export function summarizeMeeting(settings, dir = meeting.dir) {
     child.stderr.on('data', (d) => { stderr += d; });
     const done = (err) => {
       if (err) { meeting.error = `summary: ${err}`; console.error(meeting.error); }
+      else {
+        try { exportSummaryToVault(settings, dir); } catch (e) { console.error(`meeting vault: ${e.message}`); }
+      }
       Object.assign(meeting, { state: 'idle', progress: '' });
       onChange();
       resolve();

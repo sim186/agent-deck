@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
-import { dotPng, spinnerPng, tilePng, micPng, summaryPng, dataUrl } from './png.mjs';
+import { dotPng, spinnerPng, tilePng, micPng, dataUrl } from './png.mjs';
 import { herdr, listAgents, snapshot } from './herdr.mjs';
 import { meeting, onMeetingChange, startMeeting, stopMeeting, summarizeMeeting, lastTranscript, meetingsRoot, clock } from './meeting.mjs';
 import { upcoming, hhmm, describe } from './calendar.mjs';
@@ -18,6 +18,7 @@ import { runHeadless, outputDir } from './headless.mjs';
 import { askDialog } from './dialog.mjs';
 import { activeReminderId, shouldShowReminder } from './rec-reminder.mjs';
 import { limit, refreshLimits } from './limits.mjs';
+import { audio, refreshAudio, changeVolume, toggleMic } from './audio.mjs';
 
 const STATE_DIR = path.join(os.homedir(), '.claude', 'deck-status');
 const NS = 'com.simone.agentdeck.';
@@ -214,17 +215,23 @@ function meetingColor(m) {
   return '#8a8a8a';
 }
 
+// Volume keys show the speaker level; the Mic key turns red while the microphone is muted.
+function audioFace(settings) {
+  if (settings.mode === 'mic') {
+    const muted = audio.mic === 'muted';
+    return { title: `Mic\n${audio.mic ? (muted ? 'muted' : 'on') : '-'}`, color: muted ? '#eb4034' : settings.color ?? '#5a5a5a' };
+  }
+  const level = audio.volume == null ? '-' : audio.muted ? 'muted' : `${audio.volume}%`;
+  return { title: `${settings.label ?? 'Vol'}\n${level}`, color: settings.color ?? '#5a5a5a' };
+}
+
 function paint(context, force = false) {
   const key = keys.get(context);
   if (!key) return;
-  if (summaryOverlay) {
-    setImage(context, SUMMARY_READY);
-    setTitle(context, 'Summary\nready');
-    return;
-  }
-  if (reminderOverlay) {
-    setImage(context, REMINDER_FRAMES[reminderFrame]);
-    setTitle(context, 'Record\nmeeting?');
+  if (key.action === 'meeting' && key.settings.mode?.startsWith('reminder-')) {
+    const record = key.settings.mode === 'reminder-record';
+    setImage(context, record ? REMINDER_FRAMES[reminderFrame] : tile('#000000'));
+    setTitle(context, record ? 'Record\nmeeting?' : '');
     return;
   }
   if (key.busy) {
@@ -252,6 +259,15 @@ function paint(context, force = false) {
   }
   if (key.action === 'clock') {
     const face = clockFace();
+    const sig = face.title + face.color;
+    if (!force && sig === key.last) return;
+    key.last = sig;
+    setImage(context, tile(face.color));
+    setTitle(context, face.title);
+    return;
+  }
+  if (key.action === 'audio') {
+    const face = audioFace(key.settings);
     const sig = face.title + face.color;
     if (!force && sig === key.last) return;
     key.last = sig;
@@ -306,7 +322,7 @@ function animate() {
   if (moving && !anim) {
     anim = setInterval(() => {
       frame++;
-      for (const [c, k] of keys) if (!reminderOverlay && !summaryOverlay && isStatus(k) && IMAGES[k.state].length > 1) setImage(c, IMAGES[k.state][frame % FRAMES]);
+      for (const [c, k] of keys) if (isStatus(k) && IMAGES[k.state].length > 1) setImage(c, IMAGES[k.state][frame % FRAMES]);
     }, FRAME_MS);
   } else if (!moving && anim) {
     clearInterval(anim);
@@ -333,6 +349,16 @@ function raiseTerminal(settings) {
   }
 }
 
+// Teams has no shortcut for a particular window. Ctrl+Shift+E opens its Share content
+// tray, where the user can select exactly one window instead of an entire display.
+function openTeamsShare() {
+  if (process.platform !== 'win32') return console.error('Teams Share is currently supported on Windows only');
+  const script = "$shell = New-Object -ComObject WScript.Shell; if (!$shell.AppActivate('Microsoft Teams')) { throw 'Microsoft Teams is not running' }; Start-Sleep -Milliseconds 150; $shell.SendKeys('^+e')";
+  execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true }, (err) => {
+    if (err) console.error(`teams: ${err.message}`);
+  });
+}
+
 function handyBin(settings) {
   const candidates = [
     settings.handy,
@@ -346,7 +372,7 @@ function handyBin(settings) {
 
 function openPath(p) {
   if (process.platform === 'darwin') execFile('/usr/bin/open', [p], () => {});
-  else if (process.platform === 'win32') execFile('explorer.exe', [p], () => {});
+  else if (process.platform === 'win32') execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Start-Process -FilePath '${p.replace(/'/g, "''")}'`], { windowsHide: true }, () => {});
   else execFile('xdg-open', [p], () => {});
 }
 
@@ -359,6 +385,16 @@ function focusedCwd(snap) {
 }
 
 const runPanes = new Map(); // workspace id -> pane we opened for commands
+
+// A title/people match is safe only for a calendar event that is actually in progress.
+// When events overlap, prefer the one that began most recently.
+async function activeCalendarMeeting(settings) {
+  if (!settings.calendar) return null;
+  const now = Date.now();
+  const events = await upcoming(settings.calendar);
+  return events.filter((event) => event.start <= now && now < event.end)
+    .sort((a, b) => b.start - a.start)[0] ?? null;
+}
 
 const ACTIONS = {
   async status({ settings }) {
@@ -451,7 +487,8 @@ const ACTIONS = {
     const opts = { ...settings, handy: handyBin(settings) };
     switch (settings.mode ?? 'toggle') {
       case 'toggle':
-        return meeting.state === 'recording' ? stopMeeting() : startMeeting({ ...opts, onSummaryReady: showSummaryReady });
+        if (meeting.state === 'recording') return stopMeeting();
+        return startMeeting({ ...opts, calendarMeeting: await activeCalendarMeeting(settings), onSummaryReady: openPath });
       case 'folder': {
         const dir = meetingsRoot(settings);
         fs.mkdirSync(dir, { recursive: true });
@@ -467,6 +504,11 @@ const ACTIONS = {
         return summarizeMeeting(opts, path.dirname(file)).then(() => openPath(path.join(path.dirname(file), 'summary.md')));
       }
     }
+  },
+
+  // Opens Teams' Share content tray; choose a single window there to present it.
+  async teams() {
+    openTeamsShare();
   },
 
   // One-shot prompt through pi or opencode (GLM 5.3 Flash by default); the answer is saved
@@ -497,6 +539,13 @@ const ACTIONS = {
     if (!m) return;
     const text = `Brief me on this meeting from my calendar. Say what it is about, who is involved, and what I should prepare. Use only the details below, do not invent anything.\n\n${describe(m)}`;
     return ACTIONS.headless({ settings: { runner: 'opencode', name: 'briefing', ...settings, text }, context });
+  },
+
+  // Speaker volume up/down, or mute/unmute the default microphone.
+  async audio({ settings }) {
+    if (settings.mode === 'mic') await toggleMic();
+    else await changeVolume(settings.mode);
+    for (const [c, k] of keys) if (k.action === 'audio') paint(c);
   },
 
   // Pressing a limit tile refetches every provider on the next tick.
@@ -552,11 +601,16 @@ ws.onmessage = (e) => {
       break;
     case 'keyDown': {
       const settings = m.payload?.settings ?? {};
-      // An overlay turns the first press into acknowledgement. Only Rec starts recording.
-      if (summaryOverlay) { clearSummaryOverlay(); break; }
-      const startsRecording = action === 'meeting' && (settings.mode ?? 'toggle') === 'toggle' && meeting.state === 'idle';
-      if (startsRecording) clearReminderOverlay();
-      else if (dismissRecordingReminder()) break;
+      if (action === 'meeting' && settings.mode?.startsWith('reminder-')) {
+        dismissRecordingReminder();
+        switchReminderProfile(settings.device, false);
+        if (settings.mode === 'reminder-record') {
+          Promise.resolve(ACTIONS.meeting({ settings: { ...settings, mode: 'toggle' } }))
+            .catch((err) => console.error(`meeting: ${err.message}`));
+        }
+        break;
+      }
+      if (action === 'meeting' && (settings.mode ?? 'toggle') === 'toggle') dismissRecordingReminder();
       Promise.resolve(ACTIONS[action]?.({ settings, context: m.context }))
         .catch((err) => console.error(`${action}: ${err.message}`))
         .finally(() => setTimeout(poll, 300));
@@ -591,20 +645,24 @@ setInterval(poll, POLL_MS);
 setInterval(refreshAgenda, 60e3);
 // Agenda keys exist only while that profile is on screen, so this is a no-op otherwise.
 setInterval(() => { for (const [c, k] of keys) if (k.action === 'clock') paint(c); }, 15e3);
-// Rec reminder: while a meeting is happening but the recorder is off, every key shows
-// an animated microphone. Starting Rec or pressing another key clears it; the latter
-// also suppresses this reminder for the current meeting.
-const SUMMARY_READY = dataUrl(summaryPng(144));
+// Volume and mic can change outside the deck, so audio keys re-read them while visible.
+setInterval(async () => {
+  if (![...keys.values()].some((k) => k.action === 'audio')) return;
+  await refreshAudio();
+  for (const [c, k] of keys) if (k.action === 'audio') paint(c);
+}, 2000);
+// Switch to a dedicated profile so blank keys can dismiss without running other actions.
 let reminderOverlay = false;
 let reminderFrame = 0;
 let dismissedReminderId = null;
-let summaryOverlay = false;
+let reminderDevice = null;
 
-function clearReminderOverlay() {
-  if (!reminderOverlay) return;
-  reminderOverlay = false;
+function switchReminderProfile(device, show) {
+  if (!device) return;
+  reminderOverlay = show;
+  reminderDevice = show ? device : null;
   reminderFrame = 0;
-  for (const c of keys.keys()) paint(c, true);
+  send({ event: 'switchProfile', device, profile: show ? 'RecordingReminder' : 'Default' });
 }
 
 function dismissRecordingReminder() {
@@ -613,37 +671,21 @@ function dismissRecordingReminder() {
   const id = activeReminderId({ meeting: m, isTest });
   if (!id || dismissedReminderId === id) return false;
   dismissedReminderId = id;
-  clearReminderOverlay();
   return true;
 }
 
-function showSummaryReady(file) {
-  summaryOverlay = true;
-  reminderOverlay = false;
-  for (const c of keys.keys()) paint(c, true);
-  openPath(file);
-}
-
-function clearSummaryOverlay() {
-  if (!summaryOverlay) return;
-  summaryOverlay = false;
-  for (const c of keys.keys()) paint(c, true);
-}
-
 setInterval(() => {
-  if (summaryOverlay) return;
   const isTest = testMeeting();
   const m = isTest ? { start: Date.now() } : agenda[0];
   const showReminder = shouldShowReminder({ meeting: m, recorderIdle: meeting.state === 'idle', dismissedId: dismissedReminderId, isTest });
   if (showReminder === reminderOverlay) return;
-  reminderOverlay = showReminder;
-  reminderFrame = 0;
-  for (const c of keys.keys()) paint(c, true);
+  const device = reminderDevice ?? [...keys.values()].find((k) => k.settings.device)?.settings.device;
+  switchReminderProfile(device, showReminder);
 }, 1000);
 setInterval(() => {
   if (!reminderOverlay) return;
   reminderFrame = (reminderFrame + 1) % REMINDER_FRAMES.length;
-  for (const c of keys.keys()) setImage(c, REMINDER_FRAMES[reminderFrame]);
+  for (const [c, k] of keys) if (k.action === 'meeting' && k.settings.mode === 'reminder-record') setImage(c, REMINDER_FRAMES[reminderFrame]);
 }, FRAME_MS);
 setInterval(() => {
   marqueeTick++;

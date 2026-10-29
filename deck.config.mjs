@@ -12,6 +12,7 @@ const C = {
   git: '#f05033',
   editor: '#007acc',
   voice: '#eb4034',
+  audio: '#8e44ad',
 };
 
 const AGENTS = [
@@ -96,27 +97,32 @@ export default ({ projects = [], terminal, handy, calendar, meetings = {}, devic
     device,
     screen: screen.map((s) => ({ type: 'status', ...s })),
     profiles: {
-      // Left-hand layout (deck left of the keyboard). The far-left column holds Dictate and Rec,
-      // which reach best; Approve/Deny sit beside the screen. Rarer menus fill the middle.
+      // Left-hand layout (deck left of the keyboard). The two left columns hold voice and
+      // audio, which reach best: Dictate, Rec and Mic, then Vol + over Vol -. Menus fill the rest.
+      // Approve, Stop and Deny live in the Agent menu.
       Default: [
+        { type: 'dictate', label: 'Dictate', color: C.voice },
+        { type: 'audio', mode: 'up', label: 'Vol +', color: C.audio },
         menu('Launch', 'Launch'),
         menu('Projects', 'Projects'),
         menu('Prompts', 'Prompts'),
-        { type: 'keys', label: 'Deny', keys: 'esc', states: ['blocked'], color: C.agent },
-        { type: 'approve' },
-
-        { type: 'dictate', label: 'Dictate', color: C.voice },
-        menu('Git', 'Git'),
-        menu('Meeting', 'Meeting'),
-        { type: 'keys', label: 'Stop', keys: 'esc', color: C.agent },
-        menu('Agent', 'Agent'),
 
         rec('toggle', 'Rec'),
-        { type: 'prompt', label: 'Commit', text: PROMPTS[8][1], color: C.prompt },
+        { type: 'audio', mode: 'down', label: 'Vol -', color: C.audio },
+        menu('Git', 'Git'),
+        menu('Meeting', 'Meeting'),
+        menu('Agent', 'Agent'),
+
+        { type: 'audio', mode: 'mic', label: 'Mic', color: C.audio },
+        { type: 'teams', label: 'Share\nwindow', color: C.audio },
         menu('Agenda', 'Agenda'),
         { type: 'status', label: 'Agents' },
         { type: 'prompt', label: 'Review\ndiff', text: PROMPTS[0][1], color: C.prompt },
       ],
+
+      // All physical keys are actions so even a blank key can dismiss the reminder.
+      RecordingReminder: Array.from({ length: keyCount }, (_, index) =>
+        rec(index === Math.min(5, keyCount - 1) ? 'reminder-record' : 'reminder-dismiss', '')),
 
       // Upcoming Outlook meetings (calendar URL in deck.local.mjs); press one for a briefing.
       Agenda: [
