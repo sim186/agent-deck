@@ -15,6 +15,8 @@ export default {
   //   system: 'BlackHole 2ch', // loopback device for the other participants (Windows: 'Stereo Mix (Realtek Audio)' or 'CABLE Output (VB-Audio Virtual Cable)')
   //   summaryModel: 'opencode-go/glm-5.3-flash', // OpenCode model that writes summary.md after transcription
   //   vault: '~/Documents/Obsidian/my-vault/Meetings', // optional: copy only summary.md here; audio and transcript stay local
+  //   vocabulary: ['Kubernetes', 'Inspector'], // names/terms Handy often mishears; sound-alikes in the transcript are corrected
+  //   cleanTranscript: true,   // set false to keep Handy's raw text (no filler/stutter/vocabulary cleanup)
   //   ffmpeg: 'C:\\ffmpeg\\bin\\ffmpeg.exe',
   // },
   // List devices: macOS  ffmpeg -f avfoundation -list_devices true -i ""

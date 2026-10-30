@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { cleanTranscript } from './transcript-clean.mjs';
 
 const PART_SECS = 300;
 const WIN = process.platform === 'win32';
@@ -188,7 +189,8 @@ async function transcribe(settings) {
     meeting.progress = `${i + 1}/${parts.length}`;
     onChange();
     const text = bin ? await handyText(bin, path.join(dir, part)) : '[Handy not found]';
-    lines.push(`**[${clock(i * PART_SECS * 1000)}]** ${text.trim()}`, '');
+    const cleaned = settings.cleanTranscript === false ? text.trim() : cleanTranscript(text, { vocabulary: settings.vocabulary });
+    lines.push(`**[${clock(i * PART_SECS * 1000)}]** ${cleaned}`, '');
   }
   fs.writeFileSync(path.join(dir, 'transcript.md'), lines.join('\n'));
   if (settings.summarize === false) {
