@@ -16,6 +16,7 @@ export default {
   //   summaryModel: 'opencode-go/glm-5.3-flash', // OpenCode model that writes summary.md after transcription
   //   vault: '~/Documents/Obsidian/my-vault/Meetings', // optional: copy only summary.md here; audio and transcript stay local
   //   vocabulary: ['Kubernetes', 'Inspector'], // names/terms Handy often mishears; sound-alikes in the transcript are corrected
+  //   splitAtSilence: true,    // re-cut the recording at pauses instead of every 5 minutes, so no word is split; false = fixed cuts
   //   cleanTranscript: true,   // set false to keep Handy's raw text (no filler/stutter/vocabulary cleanup)
   //   ffmpeg: 'C:\\ffmpeg\\bin\\ffmpeg.exe',
   // },

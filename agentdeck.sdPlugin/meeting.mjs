@@ -7,6 +7,7 @@ import path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { cleanTranscript } from './transcript-clean.mjs';
+import { chooseCuts, parseSilences } from './silence-split.mjs';
 
 const PART_SECS = 300;
 const WIN = process.platform === 'win32';
@@ -179,18 +180,56 @@ function handyText(bin, file) {
   });
 }
 
+const run = (bin, args) => new Promise((resolve) => {
+  execFile(bin, args, { maxBuffer: 64 << 20, windowsHide: true }, (err, stdout, stderr) => resolve({ err, out: `${stdout}${stderr}` }));
+});
+
+// Fixed 5-minute ffmpeg segments can slice a word in half. Re-cut the joined audio at the
+// quietest point near each boundary instead; falls back to the original parts on any failure.
+export async function splitAtSilence(settings, dir, parts) {
+  const fallback = parts.map((file, i) => ({ file, start: i * PART_SECS }));
+  if (parts.length < 2) return fallback;
+  const ffmpegBin = findFfmpeg(settings);
+  const list = path.join(dir, '.parts.txt');
+  const joined = path.join(dir, '.joined.wav');
+  try {
+    fs.writeFileSync(list, parts.map((f) => `file '${f}'`).join('\n'));
+    const cat = await run(ffmpegBin, ['-y', '-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', joined]);
+    if (cat.err) return fallback;
+    const probe = await run(ffmpegBin, ['-hide_banner', '-i', joined, '-af', 'silencedetect=n=-35dB:d=0.5', '-f', 'null', '-']);
+    const total = Number(probe.out.match(/time=(\d+):(\d+):(\d+\.?\d*)/g)?.pop()?.replace('time=', '').split(':').reduce((a, v) => a * 60 + Number(v), 0));
+    if (!total) return fallback;
+    const cuts = chooseCuts(parseSilences(probe.out), total, PART_SECS);
+    const bounds = [0, ...cuts, total];
+    const chunks = [];
+    for (let i = 0; i < bounds.length - 1; i++) {
+      const file = `chunk-${String(i).padStart(3, '0')}.wav`;
+      const cut = await run(ffmpegBin, ['-y', '-hide_banner', '-loglevel', 'error', '-i', joined, '-ss', String(bounds[i]), '-to', String(bounds[i + 1]), '-c', 'copy', path.join(dir, file)]);
+      if (cut.err) return fallback;
+      chunks.push({ file, start: bounds[i] });
+    }
+    return chunks;
+  } catch { return fallback; } finally {
+    fs.rmSync(list, { force: true });
+    fs.rmSync(joined, { force: true });
+  }
+}
+
 async function transcribe(settings) {
   const { dir, startedAt } = meeting;
   const parts = fs.readdirSync(dir).filter((f) => /^part-\d+\.wav$/.test(f)).sort();
   const bin = settings.handy;
   meeting.state = 'transcribing';
+  meeting.progress = 'cutting';
+  onChange();
+  const chunks = settings.splitAtSilence === false ? parts.map((file, i) => ({ file, start: i * PART_SECS })) : await splitAtSilence(settings, dir, parts);
   const lines = transcriptHeader({ dir, startedAt, parts, calendarMeeting: settings.calendarMeeting });
-  for (const [i, part] of parts.entries()) {
-    meeting.progress = `${i + 1}/${parts.length}`;
+  for (const [i, { file, start }] of chunks.entries()) {
+    meeting.progress = `${i + 1}/${chunks.length}`;
     onChange();
-    const text = bin ? await handyText(bin, path.join(dir, part)) : '[Handy not found]';
+    const text = bin ? await handyText(bin, path.join(dir, file)) : '[Handy not found]';
     const cleaned = settings.cleanTranscript === false ? text.trim() : cleanTranscript(text, { vocabulary: settings.vocabulary });
-    lines.push(`**[${clock(i * PART_SECS * 1000)}]** ${cleaned}`, '');
+    lines.push(`**[${clock(start * 1000)}]** ${cleaned}`, '');
   }
   fs.writeFileSync(path.join(dir, 'transcript.md'), lines.join('\n'));
   if (settings.summarize === false) {
