@@ -12,3 +12,11 @@ export function shouldShowReminder({ meeting, now = Date.now(), recorderIdle, di
   const id = activeReminderId({ meeting, now, isTest });
   return Boolean(id && recorderIdle && dismissedId !== id);
 }
+
+// OpenDeck lets only its bundled Starter Pack switch profiles. Agent Deck therefore
+// draws the reminder over the current profile; Rec starts the recorder, any other key
+// acknowledges the reminder without invoking its normal action.
+export function reminderPress({ visible, action, mode, recorderIdle }) {
+  if (!visible) return 'pass';
+  return action === 'meeting' && (mode ?? 'toggle') === 'toggle' && recorderIdle ? 'record' : 'dismiss';
+}

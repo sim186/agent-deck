@@ -16,7 +16,7 @@ import { meeting, onMeetingChange, startMeeting, stopMeeting, summarizeMeeting, 
 import { upcoming, hhmm, describe } from './calendar.mjs';
 import { runHeadless, outputDir } from './headless.mjs';
 import { askDialog } from './dialog.mjs';
-import { activeReminderId, shouldShowReminder } from './rec-reminder.mjs';
+import { activeReminderId, reminderPress, shouldShowReminder } from './rec-reminder.mjs';
 import { limit, refreshLimits } from './limits.mjs';
 import { audio, refreshAudio, changeVolume, toggleMic } from './audio.mjs';
 
@@ -228,10 +228,9 @@ function audioFace(settings) {
 function paint(context, force = false) {
   const key = keys.get(context);
   if (!key) return;
-  if (key.action === 'meeting' && key.settings.mode?.startsWith('reminder-')) {
-    const record = key.settings.mode === 'reminder-record';
-    setImage(context, record ? REMINDER_FRAMES[reminderFrame] : tile('#000000'));
-    setTitle(context, record ? 'Record\nmeeting?' : '');
+  if (reminderOverlay) {
+    setImage(context, REMINDER_FRAMES[reminderFrame]);
+    setTitle(context, 'Record\nmeeting?');
     return;
   }
   if (key.busy) {
@@ -322,7 +321,7 @@ function animate() {
   if (moving && !anim) {
     anim = setInterval(() => {
       frame++;
-      for (const [c, k] of keys) if (isStatus(k) && IMAGES[k.state].length > 1) setImage(c, IMAGES[k.state][frame % FRAMES]);
+      for (const [c, k] of keys) if (!reminderOverlay && isStatus(k) && IMAGES[k.state].length > 1) setImage(c, IMAGES[k.state][frame % FRAMES]);
     }, FRAME_MS);
   } else if (!moving && anim) {
     clearInterval(anim);
@@ -601,16 +600,11 @@ ws.onmessage = (e) => {
       break;
     case 'keyDown': {
       const settings = m.payload?.settings ?? {};
-      if (action === 'meeting' && settings.mode?.startsWith('reminder-')) {
-        dismissRecordingReminder();
-        switchReminderProfile(settings.device, false);
-        if (settings.mode === 'reminder-record') {
-          Promise.resolve(ACTIONS.meeting({ settings: { ...settings, mode: 'toggle' } }))
-            .catch((err) => console.error(`meeting: ${err.message}`));
-        }
-        break;
-      }
-      if (action === 'meeting' && (settings.mode ?? 'toggle') === 'toggle') dismissRecordingReminder();
+      const reminderAction = reminderPress({
+        visible: reminderOverlay, action, mode: settings.mode, recorderIdle: meeting.state === 'idle',
+      });
+      if (reminderAction === 'dismiss') { dismissRecordingReminder(); break; }
+      if (reminderAction === 'record') dismissRecordingReminder();
       Promise.resolve(ACTIONS[action]?.({ settings, context: m.context }))
         .catch((err) => console.error(`${action}: ${err.message}`))
         .finally(() => setTimeout(poll, 300));
@@ -651,18 +645,17 @@ setInterval(async () => {
   await refreshAudio();
   for (const [c, k] of keys) if (k.action === 'audio') paint(c);
 }, 2000);
-// Switch to a dedicated profile so blank keys can dismiss without running other actions.
+// The reminder is rendered over the visible profile: OpenDeck only permits its bundled
+// Starter Pack plugin to switch profiles, so an Agent Deck plugin switch is ignored.
 let reminderOverlay = false;
 let reminderFrame = 0;
 let dismissedReminderId = null;
-let reminderDevice = null;
 
-function switchReminderProfile(device, show) {
-  if (!device) return;
-  reminderOverlay = show;
-  reminderDevice = show ? device : null;
+function clearReminderOverlay() {
+  if (!reminderOverlay) return;
+  reminderOverlay = false;
   reminderFrame = 0;
-  send({ event: 'switchProfile', device, profile: show ? 'RecordingReminder' : 'Default' });
+  for (const c of keys.keys()) paint(c, true);
 }
 
 function dismissRecordingReminder() {
@@ -671,6 +664,7 @@ function dismissRecordingReminder() {
   const id = activeReminderId({ meeting: m, isTest });
   if (!id || dismissedReminderId === id) return false;
   dismissedReminderId = id;
+  clearReminderOverlay();
   return true;
 }
 
@@ -679,13 +673,14 @@ setInterval(() => {
   const m = isTest ? { start: Date.now() } : agenda[0];
   const showReminder = shouldShowReminder({ meeting: m, recorderIdle: meeting.state === 'idle', dismissedId: dismissedReminderId, isTest });
   if (showReminder === reminderOverlay) return;
-  const device = reminderDevice ?? [...keys.values()].find((k) => k.settings.device)?.settings.device;
-  switchReminderProfile(device, showReminder);
+  reminderOverlay = showReminder;
+  reminderFrame = 0;
+  for (const c of keys.keys()) paint(c, true);
 }, 1000);
 setInterval(() => {
   if (!reminderOverlay) return;
   reminderFrame = (reminderFrame + 1) % REMINDER_FRAMES.length;
-  for (const [c, k] of keys) if (k.action === 'meeting' && k.settings.mode === 'reminder-record') setImage(c, REMINDER_FRAMES[reminderFrame]);
+  for (const c of keys.keys()) setImage(c, REMINDER_FRAMES[reminderFrame]);
 }, FRAME_MS);
 setInterval(() => {
   marqueeTick++;

@@ -120,10 +120,6 @@ export default ({ projects = [], terminal, handy, calendar, meetings = {}, devic
         { type: 'prompt', label: 'Review\ndiff', text: PROMPTS[0][1], color: C.prompt },
       ],
 
-      // All physical keys are actions so even a blank key can dismiss the reminder.
-      RecordingReminder: Array.from({ length: keyCount }, (_, index) =>
-        rec(index === Math.min(5, keyCount - 1) ? 'reminder-record' : 'reminder-dismiss', '')),
-
       // Upcoming Outlook meetings (calendar URL in deck.local.mjs); press one for a briefing.
       Agenda: [
         back,
