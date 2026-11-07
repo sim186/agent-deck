@@ -41,10 +41,6 @@ Meetings: Rec records the mic (plus an optional loopback device for system audio
 Agenda reads the published Outlook calendar (ICS link, set `calendar` in `deck.local.mjs`; it is private, so that file stays uncommitted).
 Other decks: set `device` (and optionally `screen`) in `deck.local.mjs`.
 
-![Agent Deck Git profile on a Mirabox, with repository and pull request controls](docs/agent-deck-git.jpg)
-
-*The Git profile on the same deck.*
-
 ## How it works
 
 - `agentdeck.sdPlugin/` — OpenDeck plugin (Node 22, no dependencies). Polls `herdr agent list`,
