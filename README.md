@@ -3,6 +3,10 @@
 Mirabox HSV293S (or any OpenDeck device) as a control surface for coding agents
 (Claude Code, Codex, OpenCode, Pi) running in [herdr](https://herdr.dev).
 
+![Agent Deck Home profile on a Mirabox, showing agent status and meeting controls](docs/agent-deck-home.jpg)
+
+*The Home profile on my desk.*
+
 ## Note
 This layout fits exactly my use case and my workflow, you can ask your agents to adapt it to your needs.
 
@@ -36,6 +40,10 @@ Meetings: Rec records the mic (plus an optional loopback device for system audio
 `handy --transcribe-file` into `transcript.md`, re-cuts the audio at the nearest pause around each 5-minute mark (`splitAtSilence: false` keeps fixed cuts), then cleans each part the way Handy does (drops fillers like "um", collapses stutters, fixes names listed in `meetings.vocabulary`; disable with `cleanTranscript: false`). If Rec is pressed while an Outlook calendar meeting is in progress, the transcript and summary use that meeting's title and include its organizer and attendees. After transcription OpenCode (`opencode run -m opencode-go/glm-5.3-flash`, headless) writes `summary.md` next to it; change the model with `summaryModel` in `meetings`. Set `meetings.vault` to copy only that Markdown summary into an Obsidian/Git folder; audio and the full transcript always stay in the local recordings folder. Tell participants you are recording.
 Agenda reads the published Outlook calendar (ICS link, set `calendar` in `deck.local.mjs`; it is private, so that file stays uncommitted).
 Other decks: set `device` (and optionally `screen`) in `deck.local.mjs`.
+
+![Agent Deck Git profile on a Mirabox, with repository and pull request controls](docs/agent-deck-git.jpg)
+
+*The Git profile on the same deck.*
 
 ## How it works
 
