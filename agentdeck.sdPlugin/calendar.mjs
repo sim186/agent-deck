@@ -62,6 +62,7 @@ function parseRule(s) {
     freq: r.FREQ, interval: Number(r.INTERVAL ?? 1), count: r.COUNT ? Number(r.COUNT) : Infinity,
     until: r.UNTIL ? stamp(r.UNTIL)?.t : Infinity,
     byday: r.BYDAY?.split(',') ?? null, bymonthday: r.BYMONTHDAY?.split(',').map(Number) ?? null, bymonth: r.BYMONTH?.split(',').map(Number) ?? null,
+    bysetpos: r.BYSETPOS?.split(',').map(Number) ?? null,
   };
 }
 
@@ -82,15 +83,23 @@ function matches(rule, startDay, day) {
     case 'MONTHLY': {
       const months = (d.getUTCFullYear() - sd.getUTCFullYear()) * 12 + d.getUTCMonth() - sd.getUTCMonth();
       if (months % rule.interval) return false;
-      if (rule.byday) {
-        const nth = Math.ceil(d.getUTCDate() / 7);
-        const fromEnd = -Math.ceil((new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate() - d.getUTCDate() + 1) / 7);
+      const lastDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+      const matchesDate = (date) => {
+        if (rule.bymonthday && !rule.bymonthday.some((n) => n === date || n === date - lastDate - 1)) return false;
+        if (!rule.byday) return rule.bymonthday ? true : date === sd.getUTCDate();
+        const weekday = DOW[new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), date)).getUTCDay()];
+        const nth = Math.ceil(date / 7);
+        const fromEnd = -Math.ceil((lastDate - date + 1) / 7);
         return rule.byday.some((x) => {
           const n = parseInt(x, 10);
-          return x.slice(-2) === DOW[d.getUTCDay()] && (Number.isNaN(n) || n === nth || n === fromEnd);
+          return x.slice(-2) === weekday && (Number.isNaN(n) || n === nth || n === fromEnd);
         });
-      }
-      return (rule.bymonthday ?? [sd.getUTCDate()]).includes(d.getUTCDate());
+      };
+      if (!matchesDate(d.getUTCDate())) return false;
+      if (!rule.bysetpos) return true;
+      // Positions select from the whole month's combined candidate set, before EXDATE/COUNT.
+      const candidates = Array.from({ length: lastDate }, (_, i) => i + 1).filter(matchesDate);
+      return rule.bysetpos.some((n) => candidates[n > 0 ? n - 1 : candidates.length + n] === d.getUTCDate());
     }
     case 'YEARLY': return d.getUTCMonth() === sd.getUTCMonth() && d.getUTCDate() === sd.getUTCDate() && (d.getUTCFullYear() - sd.getUTCFullYear()) % rule.interval === 0;
     default: return false;
