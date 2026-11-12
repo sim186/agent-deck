@@ -11,6 +11,7 @@ import { winCommand } from './headless.mjs';
 import { chooseCuts, parseSilences } from './silence-split.mjs';
 
 const PART_SECS = 300;
+const STOP_GRACE_MS = 10_000; // match the macOS watchdog: how long ffmpeg gets to flush before a hard kill
 const WIN = process.platform === 'win32';
 
 export const meeting = {
@@ -142,10 +143,16 @@ export function stopMeeting() {
 function launchDirect(bin, args, onExit) {
   const child = spawn(bin, args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
   let stderr = '';
+  let killTimer = null;
   child.stderr.on('data', (d) => { stderr += d; });
-  child.on('exit', onExit);
+  child.on('exit', () => { clearTimeout(killTimer); onExit(); });
   return {
-    stop: () => child.stdin.write('q'), // lets ffmpeg finalize the WAV headers
+    stop: () => {
+      child.stdin.write('q'); // lets ffmpeg finalize the WAV headers
+      // A blocked dshow read (device unplugged) never consumes 'q'; force the exit so
+      // transcription still runs instead of sitting in 'stopping' forever.
+      killTimer = setTimeout(() => child.kill(), STOP_GRACE_MS);
+    },
     error: () => stderr.trim().split('\n').pop(),
   };
 }

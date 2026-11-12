@@ -148,7 +148,7 @@ const REMINDER_FRAMES = Array.from({ length: FRAMES }, (_, i) => dataUrl(micPng(
 function meetingFace() {
   switch (meeting.state) {
     case 'recording': return { image: REC, title: clock(Date.now() - meeting.startedAt) };
-    case 'stopping':
+    case 'stopping': return { image: BUSY, title: 'Stopping\n...' };
     case 'transcribing': return { image: BUSY, title: `Transcr.${meeting.progress ? ` ${meeting.progress}` : ''}` };
     case 'summarizing': return { image: BUSY, title: 'Summary\n...' };
     default: return { image: tile('#eb4034'), title: meeting.error ? 'Rec\nerror' : 'Rec' };
