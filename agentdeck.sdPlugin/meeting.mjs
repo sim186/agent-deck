@@ -7,6 +7,7 @@ import path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { cleanTranscript } from './transcript-clean.mjs';
+import { winCommand } from './headless.mjs';
 import { chooseCuts, parseSilences } from './silence-split.mjs';
 
 const PART_SECS = 300;
@@ -261,7 +262,7 @@ export function summarizeMeeting(settings, dir = meeting.dir) {
     const bin = settings.opencode ?? 'opencode';
     const stdio = ['ignore', 'ignore', 'pipe'];
     const child = WIN
-      ? spawn([bin, ...args].map((a) => `"${a.replace(/"/g, '')}"`).join(' '), { shell: true, windowsHide: true, stdio })
+      ? spawn(winCommand(bin, args), { shell: true, windowsHide: true, stdio })
       : spawn(bin, args, { stdio });
     let stderr = '';
     child.stderr.on('data', (d) => { stderr += d; });

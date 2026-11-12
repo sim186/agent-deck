@@ -12,6 +12,14 @@ const INSTRUCTION = 'Carry out the instructions in the attached file and answer 
 
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '_');
 
+// Windows command line for a possibly-npm-shim CLI. Quote the arguments, but leave a bare
+// command name unquoted: cmd.exe drops %~dp0 in the .cmd shim when the name is quoted, so
+// "pi" runs pi-launcher.js from the current directory instead of the shim's own folder.
+export function winCommand(exe, args) {
+  const quote = (a) => `"${a.replace(/"/g, '')}"`;
+  return [/[\\/]/.test(exe) ? quote(exe) : exe, ...args.map(quote)].join(' ');
+}
+
 export function outputDir(settings) {
   return (settings.outDir ?? '~/Documents/AgentDeck').replace(/^~(?=$|[\\/])/, os.homedir());
 }
@@ -28,7 +36,7 @@ export function runHeadless({ runner = 'opencode', model = DEFAULT_MODEL, prompt
   const exe = bin ?? runner;
   const stdio = ['ignore', 'pipe', 'pipe'];
   const child = WIN
-    ? spawn([exe, ...args].map((a) => `"${a.replace(/"/g, '')}"`).join(' '), { shell: true, windowsHide: true, stdio })
+    ? spawn(winCommand(exe, args), { shell: true, windowsHide: true, stdio })
     : spawn(exe, args, { stdio });
   let stdout = '', stderr = '';
   child.stdout.on('data', (d) => { stdout += d; });
