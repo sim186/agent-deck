@@ -31,7 +31,7 @@ Regenerate the image after changing the layout with `node scripts/layout-svg.mjs
 | **Agenda** | next Outlook meetings (time + title); press one and GLM 5.3 Flash (opencode, background) writes a briefing and opens it |
 | **Agent** | Approve, Stop, mode toggle, plus one tile per running herdr agent (project, kind, state; press to jump to it), plus usage-limit tiles at the end: Claude weekly, Codex weekly, OpenCode Go monthly (% left, time to reset; green/amber/red; press to refresh). "More": Deny, Ctrl+C, clear/compact/model/resume (mapped per agent), Dictate AI / Cancel |
 | **Meeting** | Rec (toggle), Summary (re-run the summary), last transcript, meetings folder |
-| **Git** | status, diff, log, branches, pull, PR in browser (helper pane), commit / open PR (via agent) |
+| **Git** | status, diff, log, branches, pull, PR in browser (helper pane), commit / open PR (via agent); machine-only tiles come from `extra` in `deck.local.mjs` |
 
 Status tiles: spinning green ring = working, yellow = waiting for approval, grey = idle, "Off" = none running.
 Dictate keys toggle [Handy](https://github.com/cjpais/Handy) (`handy --toggle-transcription`); the text is typed into the focused window.

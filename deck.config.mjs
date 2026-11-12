@@ -86,7 +86,8 @@ const SCREEN = [
 
 // Each profile lists its pressable keys in reading order; the installer skips the
 // screen cells. `null` leaves a key empty. Screen tiles are the same in every profile.
-export default ({ projects = [], terminal, handy, calendar, meetings = {}, device = HSV293SV3, screen = SCREEN } = {}) => {
+// `extra` appends machine-only keys from deck.local.mjs, e.g. { Git: [{ type: 'run', ... }] }.
+export default ({ projects = [], terminal, handy, calendar, meetings = {}, device = HSV293SV3, screen = SCREEN, extra = {} } = {}) => {
   const keyCount = (device.cols - device.screenCols.length) * device.rows;
   const room = keyCount - 1; // after the Back key
   const rec = (mode, label) => ({ type: 'meeting', mode, label, color: C.voice, ...meetings });
@@ -193,6 +194,7 @@ export default ({ projects = [], terminal, handy, calendar, meetings = {}, devic
         { type: 'run', label: 'Branches', command: 'git branch -vv', color: C.git },
 
         { type: 'run', label: 'Pull', command: 'git pull --ff-only', color: C.git },
+        ...(extra.Git ?? []),
         { type: 'run', label: 'PR\nin web', command: 'gh pr view --web', color: C.git },
         { type: 'prompt', label: 'Commit', text: PROMPTS[8][1], color: C.prompt },
         { type: 'prompt', label: 'Open\nPR', text: PROMPTS[9][1], color: C.prompt },

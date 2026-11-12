@@ -37,6 +37,12 @@ export default {
   //   { kinds: ['opencode', 'pi'], label: 'OC / Pi' },
   // ],
 
+  // Optional: extra keys for this machine only, appended after the shared ones in a profile.
+  // Example: a private sync script on the Git menu.
+  // extra: {
+  //   Git: [{ type: 'run', label: 'Sync', command: 'bash ~/sync-gitea.sh', color: '#f05033' }],
+  // },
+
   // One key per project in the Projects menu (max 14 on the HSV293SV3).
   // `agent` (optional) starts that agent when the workspace is first created.
   // Each project also gets a VS Code key in the Launch menu (first 12; `editor: false` skips it).
