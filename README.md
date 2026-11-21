@@ -34,6 +34,8 @@ Regenerate the image after changing the layout with `node scripts/layout-svg.mjs
 | **Git** | status, diff, log, branches, pull, PR in browser (helper pane), commit / open PR (via agent); machine-only tiles come from `extra` in `deck.local.mjs` |
 
 Status tiles: spinning green ring = working, yellow = waiting for approval, grey = idle, "Off" = none running.
+
+A machine-specific `run` key can set `background: true` to run its command without herdr. The key shows progress and success or failure; on failure, its output log opens automatically. The command can print `::progress <text>` lines to replace "Working..." on the key, and a final `::result <text>` line that stays on the key for a few seconds (`\n` in the text is a line break). On Windows, use `wsl.exe --exec bash ...` for commands that require WSL.
 Dictate keys toggle [Handy](https://github.com/cjpais/Handy) (`handy --toggle-transcription`); the text is typed into the focused window.
 Meetings: Rec records the mic (plus an optional loopback device for system audio) with ffmpeg in
 5-minute 16 kHz WAV parts under `~/Documents/Meetings/<date_time>/`; Stop transcribes them locally with

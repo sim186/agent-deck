@@ -15,6 +15,7 @@ import { herdr, listAgents, snapshot } from './herdr.mjs';
 import { meeting, onMeetingChange, startMeeting, stopMeeting, summarizeMeeting, lastTranscript, meetingsRoot, clock } from './meeting.mjs';
 import { upcoming, hhmm, describe } from './calendar.mjs';
 import { runHeadless, outputDir } from './headless.mjs';
+import { runCommand } from './run-command.mjs';
 import { askDialog } from './dialog.mjs';
 import { activeReminderId, reminderPress, shouldShowReminder } from './rec-reminder.mjs';
 import { limit, refreshLimits } from './limits.mjs';
@@ -98,6 +99,7 @@ const ws = new WebSocket(`ws://127.0.0.1:${args.port}`);
 const send = (msg) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify(msg));
 const setImage = (context, image) => send({ event: 'setImage', context, payload: { image, target: 0 } });
 const setTitle = (context, title) => send({ event: 'setTitle', context, payload: { title, target: 0 } });
+const FLASH_MS = 6000;
 
 function statusFace(key) {
   const { action, settings } = key;
@@ -236,8 +238,19 @@ function paint(context, force = false) {
   if (key.busy) {
     key.last = null;
     setImage(context, BUSY);
-    setTitle(context, 'Working...');
+    setTitle(context, key.progress ?? 'Working...');
     return;
+  }
+  if (key.flash) {
+    if (Date.now() < key.flash.until) {
+      if (!force && key.last === key.flash) return;
+      key.last = key.flash;
+      setImage(context, tile(key.flash.color));
+      setTitle(context, key.flash.title);
+      return;
+    }
+    key.flash = null;
+    force = true;
   }
   if (key.action === 'dictate' && key.settings.mode !== 'cancel') {
     const sig = String(listening);
@@ -563,7 +576,37 @@ const ACTIONS = {
   },
 
   // Run a shell command (git etc.) in a helper pane next to the focused one, reusing it per workspace.
-  async run({ settings }) {
+  async run({ settings, context }) {
+    if (settings.background) {
+      const key = keys.get(context);
+      if (key?.busy) return;
+      if (key) { key.busy = true; key.progress = null; key.flash = null; paint(context); }
+      // `::progress` lines from the command replace "Working..." on the key.
+      const onProgress = (text) => { if (key) { key.progress = text; setTitle(context, text); } };
+      let result;
+      try {
+        result = await runCommand(settings.command, { onProgress });
+      } finally {
+        if (key) {
+          key.busy = false;
+          key.progress = null;
+          // A `::result` line stays on the key for a few seconds after the run.
+          if (result?.result) {
+            key.flash = { title: result.result, color: result.code === 0 ? '#2e7d32' : '#c62828', until: Date.now() + FLASH_MS };
+            setTimeout(() => paint(context), FLASH_MS + 50);
+          }
+          paint(context, true);
+        }
+      }
+      if (result.code !== 0) {
+        send({ event: 'showAlert', context });
+        openPath(result.log);
+      } else {
+        send({ event: 'showOk', context });
+        fs.rmSync(result.log, { force: true });
+      }
+      return;
+    }
     const snap = await snapshot();
     if (!snap.focusedPane) return;
     const ws = snap.focusedWorkspace;
@@ -606,7 +649,7 @@ ws.onmessage = (e) => {
       if (reminderAction === 'dismiss') { dismissRecordingReminder(); break; }
       if (reminderAction === 'record') dismissRecordingReminder();
       Promise.resolve(ACTIONS[action]?.({ settings, context: m.context }))
-        .catch((err) => console.error(`${action}: ${err.message}`))
+        .catch((err) => { console.error(`${action}: ${err.message}`); send({ event: 'showAlert', context: m.context }); })
         .finally(() => setTimeout(poll, 300));
       break;
     }
